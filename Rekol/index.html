@@ -535,6 +535,7 @@ function addCf(){
   document.getElementById('cf-list').appendChild(r);
 }
 function saveCustomFw(){
+  if(!signedIn){openSignIn();return}
   var name=document.getElementById('cf-name').value.trim()||'My Framework';
   var fields=Array.from(document.querySelectorAll('#cf-list .cf-row')).map(function(r){
     var nm=r.querySelector('.cf-nm').value.trim();
@@ -542,8 +543,10 @@ function saveCustomFw(){
     return nm&&desc?{name:nm,desc:desc}:null;
   }).filter(Boolean);
   if(!fields.length){toast('Add at least one field with a name and description.');return}
-  sl('rekol_custom_fw',JSON.stringify({name:name,fields:fields}));
-  toast('Framework saved — it will load automatically next time.');
+  var fw={name:name,fields:fields};
+  sl('rekol_custom_fw',JSON.stringify(fw));
+  syncCustomFw(fw);
+  toast('Framework saved to your account.');
 }
 function loadCustomFw(){
   var saved=gl('rekol_custom_fw');
@@ -589,7 +592,7 @@ async function runEval(){
   go('loading');animSteps();
   try{
     var result=await callAPI(transcript,fw,customFields,dealName,persona);
-    evalCount++;sl('rekol_count',evalCount.toString());
+    evalCount++;sl('rekol_count',evalCount.toString());syncEvalCount();
     curEval=Object.assign({},result,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid()});
     saveHist(curEval);renderOut(curEval);go('output');
     updateLimitBar();
@@ -706,7 +709,7 @@ async function doSignOut(){
   go('home')
 }
 
-function onAuthStateChange(user){
+async function onAuthStateChange(user){
   if(user){
     signedIn=true; currentUser=user;
     sl('rekol_signed','1')
@@ -714,7 +717,8 @@ function onAuthStateChange(user){
     document.getElementById('hist-btn').style.display='flex'
     document.getElementById('signin-nav-btn').style.display='none'
     document.getElementById('signout-btn').style.display='flex'
-    // sync eval count from server if needed
+    // Load profile from Supabase
+    await loadProfile()
     if(!hadEval) setTimeout(showOb, 700)
   } else {
     signedIn=false; currentUser=null;
@@ -722,6 +726,36 @@ function onAuthStateChange(user){
     document.getElementById('signin-nav-btn').style.display='flex'
     document.getElementById('signout-btn').style.display='none'
   }
+}
+
+async function loadProfile(){
+  if(!currentUser) return
+  var res = await supa.from('profiles').select('*').eq('id', currentUser.id).single()
+  if(res.data){
+    evalCount = res.data.eval_count || 0
+    isPro = res.data.is_pro || false
+    sl('rekol_count', evalCount.toString())
+    sl('rekol_pro', isPro ? '1' : '0')
+    // Load saved custom framework
+    if(res.data.custom_framework){
+      sl('rekol_custom_fw', JSON.stringify(res.data.custom_framework))
+    }
+    updateLimitBar()
+  }
+}
+
+async function syncEvalCount(){
+  if(!currentUser) return
+  await supa.from('profiles')
+    .update({ eval_count: evalCount })
+    .eq('id', currentUser.id)
+}
+
+async function syncCustomFw(fw){
+  if(!currentUser) return
+  await supa.from('profiles')
+    .update({ custom_framework: fw })
+    .eq('id', currentUser.id)
 }
 
 function saveHist(ev){var h=getHist();h.unshift(ev);sl('rekol_hist',JSON.stringify(h.slice(0,100)))}

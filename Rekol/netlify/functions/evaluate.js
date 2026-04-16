@@ -19,93 +19,82 @@ function post(data) {
       res.on('data', chunk => raw += chunk)
       res.on('end', () => resolve({ status: res.statusCode, body: raw }))
     })
-    req.on('error', (err) => {
-      console.error('HTTPS request error:', err)
-      reject(err)
-    })
-    req.setTimeout(25000, () => {
-      console.error('Request timed out')
-      req.destroy()
-      reject(new Error('Request timed out'))
-    })
+    req.on('error', (err) => { console.error('HTTPS error:', err); reject(err) })
+    req.setTimeout(25000, () => { req.destroy(); reject(new Error('Timeout')) })
     req.write(body)
     req.end()
   })
 }
 
 exports.handler = async function (event) {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method not allowed' }
-  }
+  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' }
 
   try {
-    console.log('Function started')
-    console.log('API key present:', !!process.env.ANTHROPIC_API_KEY)
-    console.log('API key prefix:', process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.substring(0, 10) : 'MISSING')
-
     const { transcript, framework, customFields, dealName, persona } = JSON.parse(event.body)
-    console.log('Framework:', framework)
-    console.log('Transcript length:', transcript ? transcript.length : 0)
 
     const FW_FIELDS = {
-      MEDDIC: ['Metrics', 'Economic Buyer', 'Decision Criteria', 'Decision Process', 'Identify Pain', 'Champion'],
-      BANT:   ['Budget', 'Authority', 'Need', 'Timeline'],
-      SPIN:   ['Situation', 'Problem', 'Implication', 'Need-Payoff'],
+      MEDDIC: ['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],
+      BANT:   ['Budget','Authority','Need','Timeline'],
+      SPIN:   ['Situation','Problem','Implication','Need-Payoff'],
     }
-
     const FW_DESC = {
       MEDDIC: 'Metrics (quantifiable ROI/impact), Economic Buyer (ultimate decision maker identified and engaged), Decision Criteria (evaluation criteria mapped), Decision Process (buying steps and timeline understood), Identify Pain (critical business pain uncovered), Champion (internal advocate identified)',
       BANT:   'Budget (confirmed budget exists), Authority (speaking with or have access to decision maker), Need (genuine business need established), Timeline (purchase timeline agreed or realistic)',
       SPIN:   'Situation (context and background gathered), Problem (core problems identified), Implication (downstream consequences explored), Need-Payoff (value of solving the problem articulated)',
     }
 
-    const sections = framework === 'Custom' ? customFields : FW_FIELDS[framework]
-    const fwDesc = framework === 'Custom'
-      ? `Custom framework:\n${customFields.map((f, i) => `${i + 1}. ${f}`).join('\n')}`
-      : `${framework}:\n${FW_DESC[framework]}`
+    let sections, fwDesc
+    if (framework === 'Custom') {
+      // customFields can be array of strings or array of {name, desc} objects
+      sections = customFields.map(f => typeof f === 'object' ? f.name : f)
+      const fieldLines = customFields.map((f, i) => {
+        if (typeof f === 'object') return (i+1) + '. ' + f.name + ': ' + (f.desc || f.name)
+        return (i+1) + '. ' + f
+      }).join('\n')
+      fwDesc = 'Custom framework:\n' + fieldLines
+    } else {
+      sections = FW_FIELDS[framework]
+      fwDesc = framework + ':\n' + FW_DESC[framework]
+    }
 
-    const secSchema = sections.map(s => `{
-  "name": "${s}",
-  "score": <0-100>,
-  "status": "<red|amber|green>",
-  "covered": "<what was discussed, or Not addressed if absent>",
-  "gaps": "<specific gaps or missing information>",
-  "coaching": "<one actionable coaching tip>",
-  "next_step": "<one concrete next action>"
-}`).join(',\n')
+    const secSchema = sections.map(s => JSON.stringify({
+      name: s,
+      score: '<0-100>',
+      status: '<red|amber|green>',
+      covered: '<what was discussed, or Not addressed if absent>',
+      gaps: '<specific gaps or missing information>',
+      coaching: '<one actionable coaching tip tailored to personas if provided>',
+      next_step: '<one concrete next action>'
+    })).join(',\n')
 
-    const prompt = `You are an expert enterprise sales coach. Analyse this call transcript and return a structured evaluation as JSON.
+    const prompt = [
+      'You are an expert enterprise sales coach. Analyse this call transcript and return a structured evaluation as JSON.',
+      '',
+      'Framework: ' + fwDesc,
+      dealName ? 'Deal: ' + dealName : '',
+      persona ? 'People on the call: ' + persona + ' — tailor coaching tips to these specific personas.' : '',
+      '',
+      'Transcript:',
+      transcript,
+      '',
+      'Return ONLY valid JSON, no markdown, no backticks:',
+      '{"overall_score":<0-100>,"summary":"<honest 2-3 sentence deal assessment>","sections":[' + secSchema + '],"next_steps":["<step 1>","<step 2>","<step 3>"]}',
+      '',
+      'Scoring: red=0-40, amber=41-70, green=71-100. Be specific and honest. If something was not in the transcript, say so clearly.'
+    ].filter(l => l !== null).join('\n')
 
-Framework: ${fwDesc}
-${dealName ? `Deal: ${dealName}` : ''}
-${persona ? `People on the call: ${persona}` : ''}
+    console.log('Calling Anthropic, framework:', framework, 'transcript length:', transcript.length)
 
-Transcript:
-${transcript}
-
-Return ONLY valid JSON, no markdown, no backticks:
-{
-  "overall_score": <0-100>,
-  "summary": "<honest 2-3 sentence deal assessment>",
-  "sections": [${secSchema}],
-  "next_steps": ["<step 1>", "<step 2>", "<step 3>"]
-}
-
-Scoring: red = 0-40, amber = 41-70, green = 71-100. Be specific and honest.`
-
-    console.log('Calling Anthropic API...')
     const response = await post({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    console.log('Anthropic response status:', response.status)
-    console.log('Anthropic response body:', response.body.substring(0, 200))
-
+    console.log('Response status:', response.status)
     if (response.status !== 200) {
       console.error('Anthropic error:', response.body)
-      return { statusCode: 502, body: JSON.stringify({ error: 'AI service error: ' + response.body }) }
+      return { statusCode: 502, body: JSON.stringify({ error: 'AI service error' }) }
     }
 
     const data = JSON.parse(response.body)
@@ -120,9 +109,6 @@ Scoring: red = 0-40, amber = 41-70, green = 71-100. Be specific and honest.`
 
   } catch (err) {
     console.error('Function error:', err.message)
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
-    }
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) }
   }
 }

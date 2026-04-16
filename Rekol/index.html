@@ -13,6 +13,7 @@
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
   <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
   -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -264,6 +265,7 @@
   <div class="nav-r">
     <button class="btn btn-ghost" id="hist-btn" onclick="go('history')" style="display:none">History</button>
     <button class="btn btn-ghost" id="signin-nav-btn" onclick="openSignIn()">Sign in</button>
+    <button class="btn btn-ghost" id="signout-btn" onclick="doSignOut()" style="display:none">Sign out</button>
   </div>
 </nav>
 
@@ -490,11 +492,17 @@
 </div>
 
 <script>
+// Supabase init
+var SUPA_URL = 'https://iqdnmlzamqqskfjysfzg.supabase.co'
+var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZG5tbHphbXFxc2tmanpzZnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNTU3NTMsImV4cCI6MjA5MTkzMTc1M30.bYFx7o_Cvr8SoLPHO_dlguOZ9x7bX9ekf_IIDUSbIYo'
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY)
+
 var fw='MEDDIC',curEval=null,editMode=false,obStep=0;
-var signedIn=gl('rekol_signed')==='1',hadEval=gl('rekol_evald')==='1';
+var signedIn=false,hadEval=gl('rekol_evald')==='1';
 var evalCount=parseInt(gl('rekol_count')||'0');
 var isPro=gl('rekol_pro')==='1';
 var FREE_LIMIT=10;
+var currentUser=null;
 var FW_FIELDS={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
 var FW_DESC={MEDDIC:'Metrics (quantifiable ROI/impact), Economic Buyer (ultimate decision maker identified and engaged), Decision Criteria (evaluation criteria mapped), Decision Process (buying steps and timeline understood), Identify Pain (critical business pain uncovered), Champion (internal advocate identified)',BANT:'Budget (confirmed budget exists), Authority (speaking with or have access to decision maker), Need (genuine business need established), Timeline (purchase timeline agreed or realistic)',SPIN:'Situation (context and background gathered), Problem (core problems identified), Implication (downstream consequences explored), Need-Payoff (value of solving the problem articulated)'};
 var OB=[{h:'Pick your framework',p:"Select MEDDIC, BANT, SPIN, or build a custom one. Hover the ? next to each name to see exactly what it covers."},{h:'Paste your transcript',p:"Copy from Gong, Chorus, Otter.ai, or anywhere. The word count shows when you've got enough for a strong evaluation."},{h:'Review, edit and share',p:"Every section scores red, amber or green. Edit the output, copy to Salesforce, or share a link with your manager in one click."}];
@@ -671,23 +679,49 @@ function copyShare(){navigator.clipboard.writeText(document.getElementById('shar
 function exportPDF(){toast('PDF export coming soon — use Copy to paste into your CRM for now.')}
 
 function openSignIn(){document.getElementById('ov-signin').classList.add('on')}
-function doSignIn(provider){
-  // TODO: redirect to OAuth provider
-  // if(provider==='google') window.location.href='/auth/google';
-  // if(provider==='microsoft') window.location.href='/auth/microsoft';
-  signedIn=true;sl('rekol_signed','1');
-  closeOv('ov-signin');
-  document.getElementById('hist-btn').style.display='flex';
-  document.getElementById('signin-nav-btn').style.display='none';
-  toast('Signed in. Your evaluations are being saved.');
-  setTimeout(showOb,700);
+
+async function doSignIn(provider){
+  var p = provider === 'google' ? 'google' : 'azure'
+  var opts = { redirectTo: window.location.origin }
+  if(provider === 'microsoft') opts.scopes = 'email'
+  var res = await supa.auth.signInWithOAuth({ provider: p, options: opts })
+  if(res.error){ toast('Sign in failed — please try again.'); console.error(res.error) }
 }
-function doEmailSignIn(){
+
+async function doEmailSignIn(){
   var email=document.getElementById('signup-email').value.trim();
   if(!email||!email.includes('@')){document.getElementById('signup-email').focus();toast('Enter a valid email address.');return}
-  // TODO: POST email to your backend / Google Apps Script to send magic link
-  // fetch('/api/auth/email', {method:'POST',body:JSON.stringify({email})})
+  var res = await supa.auth.signInWithOtp({ email: email, options: { emailRedirectTo: window.location.origin } })
+  if(res.error){ toast('Could not send email — please try again.'); return }
   document.getElementById('email-form').innerHTML='<div style="text-align:center;padding:12px 0"><div style="font-size:22px;margin-bottom:10px">&#x2709;</div><div style="font-weight:600;margin-bottom:6px">Check your inbox</div><p style="font-size:12px;color:var(--tx2)">We sent a sign-in link to <strong>'+email+'</strong></p></div>';
+}
+
+async function doSignOut(){
+  await supa.auth.signOut()
+  signedIn=false; currentUser=null;
+  sl('rekol_signed','0')
+  document.getElementById('hist-btn').style.display='none'
+  document.getElementById('signin-nav-btn').style.display='flex'
+  toast('Signed out.')
+  go('home')
+}
+
+function onAuthStateChange(user){
+  if(user){
+    signedIn=true; currentUser=user;
+    sl('rekol_signed','1')
+    closeOv('ov-signin')
+    document.getElementById('hist-btn').style.display='flex'
+    document.getElementById('signin-nav-btn').style.display='none'
+    document.getElementById('signout-btn').style.display='flex'
+    // sync eval count from server if needed
+    if(!hadEval) setTimeout(showOb, 700)
+  } else {
+    signedIn=false; currentUser=null;
+    document.getElementById('hist-btn').style.display='none'
+    document.getElementById('signin-nav-btn').style.display='flex'
+    document.getElementById('signout-btn').style.display='none'
+  }
 }
 
 function saveHist(ev){var h=getHist();h.unshift(ev);sl('rekol_hist',JSON.stringify(h.slice(0,100)))}
@@ -718,9 +752,19 @@ function gl(k){try{return localStorage.getItem(k)}catch{return null}}
 function sl(k,v){try{localStorage.setItem(k,v)}catch{}}
 
 document.addEventListener('DOMContentLoaded',function(){
-  updateLimitBar();
-  document.getElementById('hist-btn').style.display=signedIn?'flex':'none';
-  document.getElementById('signin-nav-btn').style.display=signedIn?'none':'flex';
+  updateLimitBar()
+
+  // Listen for auth state changes (handles OAuth redirects back to the page)
+  supa.auth.onAuthStateChange(function(event, session){
+    onAuthStateChange(session ? session.user : null)
+  })
+
+  // Check for existing session on load
+  supa.auth.getSession().then(function(res){
+    if(res.data && res.data.session) onAuthStateChange(res.data.session.user)
+    else onAuthStateChange(null)
+  })
+
   var count=124;
   setInterval(function(){if(Math.random()>.65){count++;var el=document.getElementById('live-c');if(el)el.textContent=count+' evaluations run this week'}},9000);
 });

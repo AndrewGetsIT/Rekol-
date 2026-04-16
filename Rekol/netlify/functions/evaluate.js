@@ -19,7 +19,15 @@ function post(data) {
       res.on('data', chunk => raw += chunk)
       res.on('end', () => resolve({ status: res.statusCode, body: raw }))
     })
-    req.on('error', reject)
+    req.on('error', (err) => {
+      console.error('HTTPS request error:', err)
+      reject(err)
+    })
+    req.setTimeout(25000, () => {
+      console.error('Request timed out')
+      req.destroy()
+      reject(new Error('Request timed out'))
+    })
     req.write(body)
     req.end()
   })
@@ -31,7 +39,13 @@ exports.handler = async function (event) {
   }
 
   try {
+    console.log('Function started')
+    console.log('API key present:', !!process.env.ANTHROPIC_API_KEY)
+    console.log('API key prefix:', process.env.ANTHROPIC_API_KEY ? process.env.ANTHROPIC_API_KEY.substring(0, 10) : 'MISSING')
+
     const { transcript, framework, customFields, dealName, persona } = JSON.parse(event.body)
+    console.log('Framework:', framework)
+    console.log('Transcript length:', transcript ? transcript.length : 0)
 
     const FW_FIELDS = {
       MEDDIC: ['Metrics', 'Economic Buyer', 'Decision Criteria', 'Decision Process', 'Identify Pain', 'Champion'],
@@ -56,7 +70,7 @@ exports.handler = async function (event) {
   "status": "<red|amber|green>",
   "covered": "<what was discussed, or Not addressed if absent>",
   "gaps": "<specific gaps or missing information>",
-  "coaching": "<one actionable coaching tip tailored to the personas on the call>",
+  "coaching": "<one actionable coaching tip>",
   "next_step": "<one concrete next action>"
 }`).join(',\n')
 
@@ -64,7 +78,7 @@ exports.handler = async function (event) {
 
 Framework: ${fwDesc}
 ${dealName ? `Deal: ${dealName}` : ''}
-${persona ? `People on the call: ${persona} — tailor coaching tips and next steps to these specific personas and their seniority.` : ''}
+${persona ? `People on the call: ${persona}` : ''}
 
 Transcript:
 ${transcript}
@@ -77,18 +91,21 @@ Return ONLY valid JSON, no markdown, no backticks:
   "next_steps": ["<step 1>", "<step 2>", "<step 3>"]
 }
 
-Scoring: red = 0-40, amber = 41-70, green = 71-100.
-Be specific and honest. If something was not discussed, say so clearly.`
+Scoring: red = 0-40, amber = 41-70, green = 71-100. Be specific and honest.`
 
+    console.log('Calling Anthropic API...')
     const response = await post({
-      model: 'claude-opus-4-5',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 2000,
       messages: [{ role: 'user', content: prompt }],
     })
 
+    console.log('Anthropic response status:', response.status)
+    console.log('Anthropic response body:', response.body.substring(0, 200))
+
     if (response.status !== 200) {
       console.error('Anthropic error:', response.body)
-      return { statusCode: 502, body: JSON.stringify({ error: 'AI service error' }) }
+      return { statusCode: 502, body: JSON.stringify({ error: 'AI service error: ' + response.body }) }
     }
 
     const data = JSON.parse(response.body)
@@ -102,10 +119,10 @@ Be specific and honest. If something was not discussed, say so clearly.`
     }
 
   } catch (err) {
-    console.error('Function error:', err)
+    console.error('Function error:', err.message)
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'Something went wrong' }),
+      body: JSON.stringify({ error: err.message }),
     }
   }
 }

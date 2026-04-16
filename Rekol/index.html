@@ -510,7 +510,7 @@ async function runEval(){
     var result=await callAPI(transcript,fw,customFields,dealName,persona);
     curEval=Object.assign({},result,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid()});
     saveHist(curEval);renderOut(curEval);go('output');
-    if(!hadEval&&!signedIn){hadEval=true;sl('rekol_evald','1');setTimeout(function(){openSignIn()},1500)}
+    if(!hadEval&&!signedIn){hadEval=true;sl('rekol_evald','1');setTimeout(function(){openSignIn()},30000)}
   }catch(e){go('home');toast('Something went wrong — please try again. Your transcript is still there.',5000);console.error(e)}
 }
 

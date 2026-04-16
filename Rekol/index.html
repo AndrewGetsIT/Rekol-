@@ -227,6 +227,12 @@
     .ob-dots{display:flex;gap:5px}
     .ob-dot{width:5px;height:5px;border-radius:50%;background:var(--bd2);transition:background .18s}
     .ob-dot.on{background:var(--ac)}
+    .cf-row{display:grid;grid-template-columns:1fr 2fr 24px;gap:8px;margin-bottom:8px;align-items:center}
+    @media(max-width:600px){.cf-row{grid-template-columns:1fr;}.cf-rm{justify-self:end}}
+    .eval-limit-bar{padding:10px 14px;border-radius:var(--rs);font-size:12px;margin-bottom:12px;display:none}
+    .eval-limit-bar.warn{background:rgba(255,170,51,0.1);border:1px solid rgba(255,170,51,0.3);color:var(--amber);display:block}
+    .eval-limit-bar.danger{background:rgba(255,82,82,0.1);border:1px solid rgba(255,82,82,0.3);color:var(--red);display:block}
+    @media print{nav,footer,.act-bar,#ov-signin,#ov-upgrade,.ob-ov,.toast{display:none!important}.view{display:block!important}.sec-bd{display:block!important}}
     .toast{position:fixed;bottom:20px;right:20px;z-index:500;background:var(--s2);border:1px solid var(--bd2);border-radius:8px;padding:10px 17px;font-size:13px;transform:translateY(60px);opacity:0;transition:all .28s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
     .toast.on{transform:translateY(0);opacity:1}
 
@@ -280,9 +286,24 @@
         <button class="fw-tab" onclick="pickFw('Custom',this)">Custom<span class="ib">?<span class="tip">Define your own evaluation criteria. Name each field and Rekol scores against exactly what matters to your process.</span></span></button>
       </div>
       <div class="cf-box" id="cf-box">
-        <div class="field-label" style="margin-bottom:12px">Your framework fields</div>
-        <div id="cf-list"><div class="cf-row"><input class="cf-in" placeholder="e.g. Business case shared with finance" type="text"><button class="cf-rm" onclick="rmCf(this)">x</button></div></div>
-        <button class="btn btn-s" style="margin-top:7px;padding:6px 12px;font-size:12px" onclick="addCf()">+ Add field</button>
+        <div class="field-mb" style="margin-bottom:14px">
+          <div class="field-label">Framework name</div>
+          <input class="txt-in" id="cf-name" placeholder="e.g. My Enterprise Framework" type="text">
+        </div>
+        <div class="field-label" style="margin-bottom:10px;display:grid;grid-template-columns:1fr 2fr 24px;gap:8px">
+          <span>Field name</span><span>What should this evaluate?</span><span></span>
+        </div>
+        <div id="cf-list">
+          <div class="cf-row">
+            <input class="cf-in cf-nm" placeholder="e.g. Stakeholder Map" type="text">
+            <input class="cf-in cf-desc" placeholder="e.g. All key decision makers identified" type="text">
+            <button class="cf-rm" onclick="rmCf(this)">x</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn btn-s" style="padding:6px 12px;font-size:12px" onclick="addCf()">+ Add field</button>
+          <button class="btn btn-s" style="padding:6px 12px;font-size:12px" onclick="saveCustomFw()">Save framework</button>
+        </div>
       </div>
     </div>
     <div class="field-mb">
@@ -369,12 +390,10 @@
     <div class="card"><div class="card-l">Overall assessment</div><div class="card-t" id="out-sum" contenteditable="false"></div></div>
     <div class="sec-cards" id="sec-cards"></div>
     <div class="card"><div class="card-l">Suggested next steps</div><ul class="next-list" id="next-list"></ul></div>
+    <div id="eval-limit-bar"></div>
     <div class="act-bar">
-      <button class="btn btn-s" id="edit-btn" onclick="toggleEdit()"><span class="edit-dot"></span>Edit</button>
-      <button class="btn btn-s" onclick="copyEval()">Copy</button>
-      <button class="btn btn-s" onclick="openShare()">Share</button>
-      <button class="btn btn-s" onclick="exportPDF()">PDF</button>
-      <button class="btn btn-ghost" onclick="go('home')" style="margin-left:auto">+ New</button>
+      <button class="btn btn-s" onclick="window.print()">Print / Save PDF</button>
+      <button class="btn btn-ghost" onclick="go('home')" style="margin-left:auto">+ New evaluation</button>
     </div>
   </div>
   <footer style="margin-top:auto">
@@ -457,9 +476,25 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- UPGRADE OVERLAY -->
+<div class="ov" id="ov-upgrade">
+  <div class="modal">
+    <div class="modal-ico">&#x26A1;</div>
+    <div class="modal-h">You have used your 10 free evaluations</div>
+    <p class="modal-p">Upgrade to Rekol Pro for unlimited evaluations, multiple custom frameworks, and priority support.</p>
+    <div class="modal-acts">
+      <a href="https://buy.stripe.com/5kQ28l4yEcNy14W60R7N600" target="_blank" class="btn btn-ac" style="width:100%;padding:13px;justify-content:center;text-decoration:none;font-size:14px">Upgrade for £6.99/month →</a>
+      <button class="btn-skip" onclick="closeOv('ov-upgrade')">Maybe later</button>
+    </div>
+  </div>
+</div>
+
 <script>
 var fw='MEDDIC',curEval=null,editMode=false,obStep=0;
 var signedIn=gl('rekol_signed')==='1',hadEval=gl('rekol_evald')==='1';
+var evalCount=parseInt(gl('rekol_count')||'0');
+var isPro=gl('rekol_pro')==='1';
+var FREE_LIMIT=10;
 var FW_FIELDS={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
 var FW_DESC={MEDDIC:'Metrics (quantifiable ROI/impact), Economic Buyer (ultimate decision maker identified and engaged), Decision Criteria (evaluation criteria mapped), Decision Process (buying steps and timeline understood), Identify Pain (critical business pain uncovered), Champion (internal advocate identified)',BANT:'Budget (confirmed budget exists), Authority (speaking with or have access to decision maker), Need (genuine business need established), Timeline (purchase timeline agreed or realistic)',SPIN:'Situation (context and background gathered), Problem (core problems identified), Implication (downstream consequences explored), Need-Payoff (value of solving the problem articulated)'};
 var OB=[{h:'Pick your framework',p:"Select MEDDIC, BANT, SPIN, or build a custom one. Hover the ? next to each name to see exactly what it covers."},{h:'Paste your transcript',p:"Copy from Gong, Chorus, Otter.ai, or anywhere. The word count shows when you've got enough for a strong evaluation."},{h:'Review, edit and share',p:"Every section scores red, amber or green. Edit the output, copy to Salesforce, or share a link with your manager in one click."}];
@@ -475,15 +510,47 @@ function go(v){
 window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>20)});
 
 function pickFw(f,btn){
+  if(f==='Custom'&&!signedIn){
+    toast('Sign in to use custom frameworks');
+    openSignIn();
+    return;
+  }
   fw=f;
   document.querySelectorAll('.fw-tab').forEach(function(t){t.classList.remove('on')});
   btn.classList.add('on');
   document.getElementById('cf-box').classList.toggle('on',f==='Custom');
+  if(f==='Custom') loadCustomFw();
 }
 function addCf(){
   var r=document.createElement('div');r.className='cf-row';
-  r.innerHTML='<input class="cf-in" placeholder="e.g. ROI calculated and shared" type="text"><button class="cf-rm" onclick="rmCf(this)">x</button>';
+  r.innerHTML='<input class="cf-in cf-nm" placeholder="e.g. Success Criteria" type="text"><input class="cf-in cf-desc" placeholder="e.g. Clear success criteria defined and agreed with the buyer" type="text"><button class="cf-rm" onclick="rmCf(this)">x</button>';
   document.getElementById('cf-list').appendChild(r);
+}
+function saveCustomFw(){
+  var name=document.getElementById('cf-name').value.trim()||'My Framework';
+  var fields=Array.from(document.querySelectorAll('#cf-list .cf-row')).map(function(r){
+    var nm=r.querySelector('.cf-nm').value.trim();
+    var desc=r.querySelector('.cf-desc').value.trim();
+    return nm&&desc?{name:nm,desc:desc}:null;
+  }).filter(Boolean);
+  if(!fields.length){toast('Add at least one field with a name and description.');return}
+  sl('rekol_custom_fw',JSON.stringify({name:name,fields:fields}));
+  toast('Framework saved — it will load automatically next time.');
+}
+function loadCustomFw(){
+  var saved=gl('rekol_custom_fw');
+  if(!saved)return;
+  try{
+    var fw=JSON.parse(saved);
+    document.getElementById('cf-name').value=fw.name||'';
+    var list=document.getElementById('cf-list');
+    list.innerHTML='';
+    fw.fields.forEach(function(f){
+      var r=document.createElement('div');r.className='cf-row';
+      r.innerHTML='<input class="cf-in cf-nm" placeholder="e.g. Success Criteria" type="text" value="'+f.name+'"><input class="cf-in cf-desc" placeholder="e.g. Clear success criteria defined" type="text" value="'+f.desc+'"><button class="cf-rm" onclick="rmCf(this)">x</button>';
+      list.appendChild(r);
+    });
+  }catch(e){}
 }
 function rmCf(btn){if(document.querySelectorAll('#cf-list .cf-row').length>1)btn.parentElement.remove()}
 
@@ -496,22 +563,38 @@ function updateWc(ta){
 }
 
 async function runEval(){
+  if(!isPro&&evalCount>=FREE_LIMIT){document.getElementById('ov-upgrade').classList.add('on');return}
   var transcript=document.getElementById('ta').value.trim();
   var dealName=document.getElementById("deal-name").value.trim();
   var persona=document.getElementById("persona").value.trim();
   if(!transcript||transcript.split(/\s+/).length<50){document.getElementById('err').classList.add('on');document.getElementById('ta').focus();return}
   var customFields=[];
   if(fw==='Custom'){
-    customFields=Array.from(document.querySelectorAll('#cf-list .cf-in')).map(function(i){return i.value.trim()}).filter(Boolean);
-    if(!customFields.length){toast('Add at least one custom framework field.');return}
+    var rows=Array.from(document.querySelectorAll('#cf-list .cf-row'));
+    customFields=rows.map(function(r){
+      var nm=r.querySelector('.cf-nm').value.trim();
+      var desc=r.querySelector('.cf-desc').value.trim();
+      return nm?{name:nm,desc:desc||nm}:null;
+    }).filter(Boolean);
+    if(!customFields.length){toast('Add at least one field with a name.');return}
   }
   go('loading');animSteps();
   try{
     var result=await callAPI(transcript,fw,customFields,dealName,persona);
+    evalCount++;sl('rekol_count',evalCount.toString());
     curEval=Object.assign({},result,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid()});
     saveHist(curEval);renderOut(curEval);go('output');
-    if(!hadEval&&!signedIn){hadEval=true;sl('rekol_evald','1');setTimeout(function(){openSignIn()},30000)}
+    updateLimitBar();
+    if(!hadEval){hadEval=true;sl('rekol_evald','1')}
   }catch(e){go('home');toast('Something went wrong — please try again. Your transcript is still there.',5000);console.error(e)}
+}
+function updateLimitBar(){
+  var bar=document.getElementById('eval-limit-bar');
+  if(!bar||isPro)return;
+  var rem=FREE_LIMIT-evalCount;
+  if(rem<=0){bar.className='eval-limit-bar danger';bar.innerHTML='You have used all 10 free evaluations. <a href="https://buy.stripe.com/5kQ28l4yEcNy14W60R7N600" target="_blank" style="color:inherit;font-weight:600">Upgrade for £6.99/month →</a>'}
+  else if(rem<=2){bar.className='eval-limit-bar warn';bar.textContent=(rem===1?'1 free evaluation':'2 free evaluations')+' remaining.'}
+  else{bar.className='eval-limit-bar';bar.textContent=''}
 }
 
 function animSteps(){
@@ -532,8 +615,15 @@ async function callAPI(transcript,framework,customFields,dealName,persona){
   if(data.error)throw new Error(data.error);
   return data;
 }
+function copySection(btn){
+  var body=btn.parentElement;
+  var name=body.parentElement.querySelector('.sec-nm').textContent;
+  var texts=Array.from(body.querySelectorAll('.sec-sub,.sec-txt')).map(function(el){return el.textContent}).join('\n');
+  navigator.clipboard.writeText(name+'\n'+texts).then(function(){toast(name+' copied')});
+}
 
 function renderOut(ev){
+  updateLimitBar();
   var s=ev.overall_score;
   document.getElementById('score-n').textContent=s;
   document.getElementById('score-c').className='score-c '+(s>=70?'hi':s>=41?'mid':'lo');
@@ -542,14 +632,22 @@ function renderOut(ev){
   var cards=document.getElementById('sec-cards');cards.innerHTML='';
   ev.sections.forEach(function(sec,i){
     var d=document.createElement('div');d.className='sec-card '+sec.status;
-    d.innerHTML='<div class="sec-hd" onclick="toggleSec(this.parentElement)"><div class="sec-dot"></div><div class="sec-nm">'+sec.name+'</div><div class="sec-sc">'+sec.score+'/100</div><div class="chev">v</div></div><div class="sec-bd"><div class="sec-sub">What was covered</div><div class="sec-txt" contenteditable="false">'+sec.covered+'</div><div class="sec-sub">Gaps</div><div class="sec-txt" contenteditable="false">'+sec.gaps+'</div><div class="sec-sub">Coaching tip</div><div class="sec-txt" contenteditable="false">'+sec.coaching+'</div><div class="sec-sub">Next step</div><div class="sec-txt" contenteditable="false" style="color:var(--tx)">&#x2192; '+sec.next_step+'</div></div>';
+    var sidx=i;
+    d.innerHTML='<div class="sec-hd" onclick="toggleSec(this.parentElement)"><div class="sec-dot"></div><div class="sec-nm">'+sec.name+'</div><div class="sec-sc">'+sec.score+'/100</div><div class="chev">v</div></div><div class="sec-bd"><div class="sec-sub">What was covered</div><div class="sec-txt">'+sec.covered+'</div><div class="sec-sub">Gaps</div><div class="sec-txt">'+sec.gaps+'</div><div class="sec-sub">Coaching tip</div><div class="sec-txt">'+sec.coaching+'</div><div class="sec-sub">Next step</div><div class="sec-txt" style="color:var(--tx)">&#x2192; '+sec.next_step+'</div><button class="btn btn-s" style="margin-top:12px;padding:5px 11px;font-size:11px" onclick="copySection(this)">Copy section</button></div>';
     cards.appendChild(d);
     if(sec.status==='red'&&i<2)toggleSec(d);
   });
   var nl=document.getElementById('next-list');nl.innerHTML='';
   ev.next_steps.forEach(function(s){var li=document.createElement('li');li.textContent=s;nl.appendChild(li)});
 }
-function toggleSec(c){c.classList.toggle('open')}
+var sectionsOpened=0;
+function toggleSec(c){
+  c.classList.toggle('open');
+  if(c.classList.contains('open')){
+    sectionsOpened++;
+    if(sectionsOpened>=2&&!signedIn&&hadEval){openSignIn()}
+  }
+}
 
 function toggleEdit(){
   editMode=!editMode;
@@ -620,6 +718,7 @@ function gl(k){try{return localStorage.getItem(k)}catch{return null}}
 function sl(k,v){try{localStorage.setItem(k,v)}catch{}}
 
 document.addEventListener('DOMContentLoaded',function(){
+  updateLimitBar();
   document.getElementById('hist-btn').style.display=signedIn?'flex':'none';
   document.getElementById('signin-nav-btn').style.display=signedIn?'none':'flex';
   var count=124;

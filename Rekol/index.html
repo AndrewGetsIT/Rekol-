@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rekol — AI Sales Call Intelligence</title>
+  <meta name="description" content="AI sales call analyser for Account Executives. Analyse call transcripts against MEDDIC, BANT, SPIN and custom frameworks. Free, instant, no signup needed.">
+  <meta property="og:title" content="Rekol — AI Sales Call Intelligence">
+  <meta property="og:description" content="Let AI handle the post-call admin. You focus on closing.">
+  <meta property="og:url" content="https://getrekol.com">
+  <!-- Google Analytics — replace G-XXXXXXXXXX -->
+  <!--
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#090909;--s1:#111;--s2:#181818;--bd:#222;--bd2:#2d2d2d;
+      --tx:#efece7;--tx2:#888;--tx3:#484848;
+      --ac:#d0f23e;--ac-dim:rgba(208,242,62,0.08);
+      --red:#ff5252;--amber:#ffaa33;--green:#4ade80;
+      --r:12px;--rs:8px;
+    }
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--tx);font-family:'Sora',sans-serif;font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+    .view{display:none;min-height:100vh;flex-direction:column}
+    .view.on{display:flex}
+    nav{position:fixed;top:0;left:0;right:0;z-index:100;display:flex;align-items:center;justify-content:space-between;padding:16px 36px;background:rgba(9,9,9,.88);backdrop-filter:blur(20px);border-bottom:1px solid transparent;transition:border-color .3s}
+    nav.scrolled{border-color:var(--bd)}
+    .logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;letter-spacing:.03em;color:var(--tx);cursor:pointer;user-select:none}
+    .nav-r{display:flex;align-items:center;gap:8px}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 17px;border-radius:var(--rs);font-family:'Sora',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .16s;border:none}
+    .btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--bd)}
+    .btn-ghost:hover{color:var(--tx);border-color:var(--bd2);background:var(--s1)}
+    .btn-ac{background:var(--ac);color:#0a0a0a;font-weight:600}
+    .btn-ac:hover{background:#c8e935;transform:translateY(-1px);box-shadow:0 6px 20px rgba(208,242,62,.18)}
+    .btn-s{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}
+    .btn-s:hover{background:#202020;border-color:var(--bd2)}
+    .btn-xl{padding:15px 32px;font-size:15px;border-radius:10px;font-weight:600}
+    .btn-lg{padding:13px 26px;font-size:14px;border-radius:10px}
+
+    /* HOME */
+    #v-home{padding-top:80px}
+    .hero{text-align:center;padding:64px 24px 0;position:relative}
+    .hero-glow{position:absolute;top:0;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(208,242,62,.04) 0%,transparent 65%);pointer-events:none}
+    .live-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 13px;border:1px solid var(--bd);border-radius:100px;font-size:12px;color:var(--tx2);margin-bottom:32px}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--ac);animation:blink 2.2s ease-in-out infinite}
+    @keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
+    .hero-h{font-family:'Cormorant Garamond',serif;font-size:clamp(52px,8vw,96px);font-weight:500;line-height:.95;letter-spacing:-.02em;margin-bottom:20px}
+    .hero-h em{font-style:italic;color:var(--ac)}
+    .hero-sub{font-size:clamp(13px,1.6vw,16px);color:var(--tx2);max-width:420px;margin:0 auto 44px;font-weight:300;line-height:1.7}
+    .tool-wrap{max-width:700px;margin:0 auto;padding:0 20px 80px;width:100%}
+    .field-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--tx2);margin-bottom:10px;display:flex;align-items:center;gap:7px}
+    .field-mb{margin-bottom:20px}
+    .fw-tabs{display:flex;gap:6px;flex-wrap:wrap}
+    .fw-tab{display:flex;align-items:center;gap:6px;padding:9px 15px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--s1);color:var(--tx2);font-family:'Sora',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .16s}
+    .fw-tab:hover{border-color:var(--bd2);color:var(--tx)}
+    .fw-tab.on{border-color:var(--ac);background:var(--ac-dim);color:var(--ac)}
+    .ib{width:14px;height:14px;border-radius:50%;background:var(--s2);border:1px solid var(--bd);color:var(--tx3);font-size:9px;cursor:default;display:inline-flex;align-items:center;justify-content:center;position:relative;font-weight:700;flex-shrink:0}
+    .ib:hover .tip{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+    .tip{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%) translateY(5px);background:var(--s2);border:1px solid var(--bd2);border-radius:8px;padding:9px 12px;font-size:11px;line-height:1.6;color:var(--tx2);width:200px;opacity:0;pointer-events:none;transition:all .18s;z-index:50;font-weight:400;text-transform:none;letter-spacing:0;white-space:normal}
+    .cf-box{margin-top:14px;padding:18px;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);display:none}
+    .cf-box.on{display:block}
+    .cf-row{display:flex;gap:7px;margin-bottom:7px}
+    .cf-in{flex:1;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:8px 11px;color:var(--tx);font-family:'Sora',sans-serif;font-size:13px}
+    .cf-in::placeholder{color:var(--tx3)}
+    .cf-in:focus{outline:none;border-color:var(--bd2)}
+    .cf-rm{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:18px;padding:2px 5px;line-height:1;transition:color .14s}
+    .cf-rm:hover{color:var(--red)}
+    .txt-in{width:100%;background:var(--s1);border:1px solid var(--bd);border-radius:var(--rs);padding:11px 13px;color:var(--tx);font-family:'Sora',sans-serif;font-size:13px;transition:border-color .16s}
+    .txt-in::placeholder{color:var(--tx3)}
+    .txt-in:focus{outline:none;border-color:var(--bd2)}
+    .ta{width:100%;min-height:200px;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:16px 18px;color:var(--tx);font-family:'Sora',sans-serif;font-size:13px;line-height:1.75;resize:vertical;transition:border-color .16s}
+    .ta::placeholder{color:var(--tx3)}
+    .ta:focus{outline:none;border-color:var(--bd2)}
+    .ta-foot{display:flex;justify-content:space-between;align-items:center;margin-top:7px}
+    .wc{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3)}
+    .wc.warn{color:var(--amber)}
+    .wc.ok{color:var(--green)}
+    .err{font-size:12px;color:var(--amber);display:none}
+    .err.on{display:block}
+    .run-row{display:flex;justify-content:flex-end;margin-top:16px}
+    .divider{border:none;border-top:1px solid var(--bd);margin:0 auto 60px;max-width:960px;width:calc(100% - 48px)}
+    .lp-wrap{max-width:960px;margin:0 auto;padding:0 24px 80px}
+    .lp-label{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ac);margin-bottom:18px}
+    .lp-h{font-family:'Cormorant Garamond',serif;font-size:clamp(32px,4.5vw,50px);font-weight:500;line-height:1.06;margin-bottom:48px}
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+    .step{background:var(--s1);padding:28px}
+    .step:first-child{border-radius:var(--r) 0 0 var(--r)}
+    .step:last-child{border-radius:0 var(--r) var(--r) 0}
+    .step-n{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx3);margin-bottom:16px}
+    .step-t{font-weight:600;font-size:13px;margin-bottom:7px}
+    .step-d{font-size:12px;color:var(--tx2);line-height:1.65}
+    .fw-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:2px}
+    .fw-c{background:var(--s1);padding:24px;transition:background .16s}
+    .fw-c:first-child{border-radius:var(--r) 0 0 var(--r)}
+    .fw-c:last-child{border-radius:0 var(--r) var(--r) 0}
+    .fw-c:hover{background:var(--s2)}
+    .fw-nm{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500;color:var(--ac);margin-bottom:8px}
+    .fw-d{font-size:12px;color:var(--tx2);line-height:1.65}
+    .testi-g{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .testi{background:var(--s1);padding:24px;border-radius:var(--r);border:1px solid var(--bd)}
+    .testi-q{font-size:13px;color:var(--tx2);line-height:1.75;margin-bottom:18px;font-style:italic}
+    .testi-a{display:flex;align-items:center;gap:10px}
+    .testi-av{width:32px;height:32px;border-radius:50%;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--tx2);flex-shrink:0}
+    .testi-n{font-size:12px;font-weight:600}
+    .testi-r{font-size:11px;color:var(--tx3)}
+    footer{border-top:1px solid var(--bd);padding:28px 36px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+    .f-links{display:flex;gap:20px;flex-wrap:wrap}
+    .f-links a{font-size:12px;color:var(--tx3);text-decoration:none;transition:color .16s}
+    .f-links a:hover{color:var(--tx)}
+
+    /* LOADING */
+    #v-loading{align-items:center;justify-content:center}
+    .ld-wrap{text-align:center;padding:40px}
+    .spin{width:52px;height:52px;margin:0 auto 28px;position:relative}
+    .spin-r{position:absolute;inset:0;border-radius:50%;border:1.5px solid transparent;border-top-color:var(--ac);animation:spin 1s linear infinite}
+    .spin-r:nth-child(2){inset:9px;border-top-color:transparent;border-right-color:var(--ac);opacity:.4;animation-duration:1.6s;animation-direction:reverse}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .ld-h{font-family:'Cormorant Garamond',serif;font-size:28px;margin-bottom:5px}
+    .ld-p{font-size:13px;color:var(--tx2)}
+    .ld-steps{margin:32px auto 0;max-width:260px;display:flex;flex-direction:column;gap:11px;align-items:flex-start}
+    .ld-step{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--tx3);opacity:0;transition:opacity .4s,color .4s}
+    .ld-step.act{opacity:1;color:var(--tx)}
+    .ld-step.done{opacity:1;color:var(--green)}
+    .ld-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+    /* OUTPUT */
+    #v-output{padding-top:80px}
+    .out-wrap{max-width:760px;margin:0 auto;padding:48px 20px;width:100%}
+    .out-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:32px;flex-wrap:wrap}
+    .out-meta{font-size:12px;color:var(--tx3);margin-bottom:4px}
+    .out-h{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500}
+    .score-c{width:72px;height:72px;border-radius:50%;background:var(--s1);border:1.5px solid var(--bd);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+    .score-n{font-family:'JetBrains Mono',monospace;font-size:21px;font-weight:500;line-height:1}
+    .score-l{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+    .score-c.hi .score-n{color:var(--green)}
+    .score-c.mid .score-n{color:var(--amber)}
+    .score-c.lo .score-n{color:var(--red)}
+    .card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-bottom:8px}
+    .card-l{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:7px}
+    .card-t{font-size:14px;line-height:1.7;color:var(--tx2)}
+    .card-t:focus{outline:none}
+    .sec-cards{display:flex;flex-direction:column;gap:5px;margin-bottom:8px}
+    .sec-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+    .sec-card.red{border-left:3px solid var(--red)}
+    .sec-card.amber{border-left:3px solid var(--amber)}
+    .sec-card.green{border-left:3px solid var(--green)}
+    .sec-hd{display:flex;align-items:center;padding:14px 17px;cursor:pointer;user-select:none;gap:9px;transition:background .14s}
+    .sec-hd:hover{background:var(--s2)}
+    .sec-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .red .sec-dot{background:var(--red)}
+    .amber .sec-dot{background:var(--amber)}
+    .green .sec-dot{background:var(--green)}
+    .sec-nm{font-weight:600;font-size:13px;flex:1}
+    .sec-sc{font-family:'JetBrains Mono',monospace;font-size:12px}
+    .red .sec-sc{color:var(--red)}
+    .amber .sec-sc{color:var(--amber)}
+    .green .sec-sc{color:var(--green)}
+    .chev{color:var(--tx3);font-size:11px;transition:transform .22s}
+    .sec-card.open .chev{transform:rotate(180deg)}
+    .sec-bd{display:none;padding:2px 17px 17px}
+    .sec-card.open .sec-bd{display:block}
+    .sec-sub{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);margin-top:13px;margin-bottom:4px}
+    .sec-txt{font-size:13px;color:var(--tx2);line-height:1.65}
+    .sec-txt:focus{outline:none}
+    .next-list{list-style:none;margin-top:9px;display:flex;flex-direction:column;gap:8px}
+    .next-list li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--tx2);line-height:1.65}
+    .next-list li::before{content:'→';color:var(--ac);font-weight:600;flex-shrink:0}
+    .act-bar{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 36px}
+    .edit-dot{width:5px;height:5px;border-radius:50%;background:var(--amber);display:none}
+    .edit-on .edit-dot{display:block}
+
+    /* HISTORY */
+    #v-history{padding-top:80px}
+    .hist-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:9px}
+    .hist-c{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:17px 19px;cursor:pointer;transition:all .16s}
+    .hist-c:hover{border-color:var(--bd2);transform:translateY(-2px)}
+    .hist-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+    .hist-deal{font-weight:600;font-size:13px}
+    .hist-sc{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500}
+    .hist-sc.hi{color:var(--green)}
+    .hist-sc.mid{color:var(--amber)}
+    .hist-sc.lo{color:var(--red)}
+    .hist-meta{font-size:11px;color:var(--tx3);display:flex;gap:10px}
+    .empty{text-align:center;padding:72px 24px}
+    .empty-ico{font-size:40px;margin-bottom:18px;opacity:.4}
+    .empty-h{font-family:'Cormorant Garamond',serif;font-size:26px;margin-bottom:9px}
+    .empty-p{font-size:13px;color:var(--tx2);margin-bottom:24px}
+
+    /* OVERLAYS */
+    .ov{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:200;display:none;align-items:center;justify-content:center;padding:24px}
+    .ov.on{display:flex}
+    .modal{background:var(--s1);border:1px solid var(--bd);border-radius:16px;padding:40px;max-width:400px;width:100%;text-align:center}
+    .modal-ico{width:50px;height:50px;border-radius:12px;background:var(--ac-dim);display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:22px}
+    .modal-h{font-family:'Cormorant Garamond',serif;font-size:28px;margin-bottom:9px}
+    .modal-p{font-size:13px;color:var(--tx2);line-height:1.7;margin-bottom:28px}
+    .modal-acts{display:flex;flex-direction:column;gap:7px}
+    .btn-sso{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:12px;border:none;border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .16s}
+    .btn-google-sso{background:#fff;color:#1a1a1a}
+    .btn-google-sso:hover{opacity:.91}
+    .btn-ms-sso{background:#2f2f2f;color:#fff;border:1px solid var(--bd2)}
+    .btn-ms-sso:hover{background:#3a3a3a}
+    .sso-divider{display:flex;align-items:center;gap:12px;margin:4px 0;color:var(--tx3);font-size:11px}
+    .sso-divider::before,.sso-divider::after{content:'';flex:1;height:1px;background:var(--bd)}
+    .email-in{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:11px 13px;color:var(--tx);font-family:'Sora',sans-serif;font-size:13px}
+    .email-in::placeholder{color:var(--tx3)}
+    .email-in:focus{outline:none;border-color:var(--bd2)}
+    .signin-footer{font-size:11px;color:var(--tx3);margin-top:4px}
+    .signin-footer a{color:var(--tx3);text-decoration:underline}
+    .btn-skip{background:none;border:none;font-size:12px;color:var(--tx3);cursor:pointer;padding:5px;font-family:'Sora',sans-serif}
+    .btn-skip:hover{color:var(--tx)}
+    .share-box{display:flex;gap:7px;margin-top:12px}
+    .share-in{flex:1;background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:9px 11px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--tx2)}
+    .ob-ov{position:fixed;inset:0;z-index:300;display:none}
+    .ob-ov.on{display:block}
+    .ob-bg{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+    .ob-pop{position:fixed;background:var(--s2);border:1px solid var(--bd2);border-radius:12px;padding:22px;width:280px;z-index:301}
+    .ob-sl{font-size:10px;color:var(--ac);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+    .ob-h{font-size:14px;font-weight:600;margin-bottom:6px}
+    .ob-p{font-size:12px;color:var(--tx2);line-height:1.65;margin-bottom:17px}
+    .ob-row{display:flex;justify-content:space-between;align-items:center}
+    .ob-dots{display:flex;gap:5px}
+    .ob-dot{width:5px;height:5px;border-radius:50%;background:var(--bd2);transition:background .18s}
+    .ob-dot.on{background:var(--ac)}
+    .toast{position:fixed;bottom:20px;right:20px;z-index:500;background:var(--s2);border:1px solid var(--bd2);border-radius:8px;padding:10px 17px;font-size:13px;transform:translateY(60px);opacity:0;transition:all .28s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+    .toast.on{transform:translateY(0);opacity:1}
+
+    @media(max-width:768px){
+      nav{padding:12px 16px}
+      .hero{padding:52px 16px 0}
+      .tool-wrap{padding:0 16px 60px}
+      .steps{grid-template-columns:1fr}
+      .step:first-child{border-radius:var(--r) var(--r) 0 0}
+      .step:last-child{border-radius:0 0 var(--r) var(--r)}
+      .fw-grid{grid-template-columns:1fr 1fr}
+      .testi-g{grid-template-columns:1fr}
+      footer{flex-direction:column;padding:20px 16px}
+      .lp-wrap{padding:0 16px 60px}
+      .out-wrap{padding:32px 16px}
+    }
+    @media(max-width:480px){
+      .hero-h{font-size:48px}
+      .fw-grid{grid-template-columns:1fr}
+      .fw-c:first-child{border-radius:var(--r) var(--r) 0 0}
+      .fw-c:last-child{border-radius:0 0 var(--r) var(--r)}
+    }
+  </style>
+</head>
+<body>
+
+<nav id="nav">
+  <span class="logo" onclick="go('home')">Rekol</span>
+  <div class="nav-r">
+    <button class="btn btn-ghost" id="hist-btn" onclick="go('history')" style="display:none">History</button>
+    <button class="btn btn-ghost" id="signin-nav-btn" onclick="openSignIn()">Sign in</button>
+  </div>
+</nav>
+
+<!-- HOME -->
+<div id="v-home" class="view on">
+  <div class="hero">
+    <div class="hero-glow"></div>
+    <div class="live-badge"><span class="live-dot"></span><span id="live-c">124 evaluations run this week</span></div>
+    <h1 class="hero-h">Be present.<br>Let <em>Rekol</em><br>handle the rest.</h1>
+    <p class="hero-sub">Paste your transcript below. Get an instant evaluation against MEDDIC, BANT, SPIN — or your own framework. No signup needed.</p>
+  </div>
+
+  <div class="tool-wrap">
+    <div class="field-mb">
+      <div class="field-label">Framework</div>
+      <div class="fw-tabs">
+        <button class="fw-tab on" onclick="pickFw('MEDDIC',this)">MEDDIC<span class="ib">?<span class="tip">Metrics · Economic Buyer · Decision Criteria · Decision Process · Identify Pain · Champion. The gold standard for enterprise deals.</span></span></button>
+        <button class="fw-tab" onclick="pickFw('BANT',this)">BANT<span class="ib">?<span class="tip">Budget · Authority · Need · Timeline. Fast qualification for high-velocity and SMB sales cycles.</span></span></button>
+        <button class="fw-tab" onclick="pickFw('SPIN',this)">SPIN<span class="ib">?<span class="tip">Situation · Problem · Implication · Need-Payoff. Consultative selling that uncovers deep pain before pitching.</span></span></button>
+        <button class="fw-tab" onclick="pickFw('Custom',this)">Custom<span class="ib">?<span class="tip">Define your own evaluation criteria. Name each field and Rekol scores against exactly what matters to your process.</span></span></button>
+      </div>
+      <div class="cf-box" id="cf-box">
+        <div class="field-label" style="margin-bottom:12px">Your framework fields</div>
+        <div id="cf-list"><div class="cf-row"><input class="cf-in" placeholder="e.g. Business case shared with finance" type="text"><button class="cf-rm" onclick="rmCf(this)">x</button></div></div>
+        <button class="btn btn-s" style="margin-top:7px;padding:6px 12px;font-size:12px" onclick="addCf()">+ Add field</button>
+      </div>
+    </div>
+    <div class="field-mb">
+      <div class="field-label">Deal name <span style="color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <input class="txt-in" id="deal-name" placeholder="e.g. Acme Corp — Q2 expansion" type="text">
+    </div>
+    <div class="field-mb">
+      <div class="field-label">Who was on the call? <span style="color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <input class="txt-in" id="persona" placeholder="e.g. David Chen (Head of RevOps, economic buyer), James Liu (CRO, final sign-off)">
+    </div>
+    <div class="field-mb">
+      <div class="field-label">Call transcript</div>
+      <textarea class="ta" id="ta" placeholder="Paste your call transcript here. You can get this from Gong, Chorus, Otter.ai, or any recording tool.&#10;&#10;The more detail you include, the better your evaluation will be." oninput="updateWc(this)"></textarea>
+      <div class="ta-foot">
+        <span class="wc" id="wc">0 words</span>
+        <span class="err" id="err">Add more detail — aim for at least 100 words for a useful evaluation.</span>
+      </div>
+    </div>
+    <div class="run-row"><button class="btn btn-ac btn-xl" onclick="runEval()">Run evaluation →</button></div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="lp-wrap">
+    <div style="margin-bottom:72px">
+      <div class="lp-label">How it works</div>
+      <h2 class="lp-h">Three steps.<br>Zero admin.</h2>
+      <div class="steps">
+        <div class="step"><div class="step-n">01</div><div class="step-t">Choose your framework</div><p class="step-d">MEDDIC, BANT, SPIN, or define your own. Rekol evaluates against exactly what matters to your process.</p></div>
+        <div class="step"><div class="step-n">02</div><div class="step-t">Paste your transcript</div><p class="step-d">Copy from Gong, Chorus, Otter.ai — or paste raw notes. No formatting needed.</p></div>
+        <div class="step"><div class="step-n">03</div><div class="step-t">Get your evaluation</div><p class="step-d">Red, amber, green scoring per section. Gaps, coaching tips, and next steps — in 30 seconds.</p></div>
+      </div>
+    </div>
+    <div style="margin-bottom:72px">
+      <div class="lp-label">Frameworks</div>
+      <h2 class="lp-h">Whichever way<br>you sell.</h2>
+      <div class="fw-grid">
+        <div class="fw-c"><div class="fw-nm">MEDDIC</div><p class="fw-d">Metrics · Economic Buyer · Decision Criteria · Decision Process · Identify Pain · Champion.</p></div>
+        <div class="fw-c"><div class="fw-nm">BANT</div><p class="fw-d">Budget · Authority · Need · Timeline. Fast, clean qualification for high-velocity deals.</p></div>
+        <div class="fw-c"><div class="fw-nm">SPIN</div><p class="fw-d">Situation · Problem · Implication · Need-Payoff. Consultative selling done right.</p></div>
+        <div class="fw-c"><div class="fw-nm">Custom</div><p class="fw-d">Your fields. Your criteria. Saved to your account for every future call.</p></div>
+      </div>
+    </div>
+    <div>
+      <div class="lp-label">WHAT A<span style="text-transform:none">Es</span> SAY</div>
+      <h2 class="lp-h">Early feedback.</h2>
+      <div class="testi-g">
+        <div class="testi"><p class="testi-q">"I used to spend 20 minutes writing up call notes after every meeting. Now I paste the transcript and I'm done in 30 seconds. The coaching tips alone are worth it."</p><div class="testi-a"><div class="testi-av">J</div><div><div class="testi-n">James R.</div><div class="testi-r">Senior AE · SaaS</div></div></div></div>
+        <div class="testi"><p class="testi-q">"The MEDDIC scoring opened my eyes. I thought I'd qualified the deal — turns out I'd never surfaced the economic buyer. Saved me weeks chasing a deal that was never going to close."</p><div class="testi-a"><div class="testi-av">S</div><div><div class="testi-n">Sarah K.</div><div class="testi-r">Enterprise AE · Fintech</div></div></div></div>
+        <div class="testi"><p class="testi-q">"My manager asked for structured deal reviews. I share the Rekol link and the whole conversation is 10x more productive."</p><div class="testi-a"><div class="testi-av">M</div><div><div class="testi-n">Marcus T.</div><div class="testi-r">Mid-Market AE · HR Tech</div></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span class="logo" onclick="go('home')">Rekol</span>
+    <div class="f-links"><a href="#">Privacy policy</a><a href="#">Terms</a><a href="mailto:hello@getrekol.com">Contact</a><a href="https://ituaefe.com" target="_blank" rel="noopener">Built by Itua</a></div>
+  </footer>
+</div>
+
+<!-- LOADING -->
+<div id="v-loading" class="view">
+  <div class="ld-wrap">
+    <div class="spin"><div class="spin-r"></div><div class="spin-r"></div></div>
+    <div class="ld-h">Analysing your call</div>
+    <p class="ld-p">Generating your evaluation</p>
+    <div class="ld-steps">
+      <div class="ld-step" id="ls1"><div class="ld-dot"></div>Reading transcript</div>
+      <div class="ld-step" id="ls2"><div class="ld-dot"></div>Matching framework criteria</div>
+      <div class="ld-step" id="ls3"><div class="ld-dot"></div>Scoring each section</div>
+      <div class="ld-step" id="ls4"><div class="ld-dot"></div>Generating coaching tips</div>
+      <div class="ld-step" id="ls5"><div class="ld-dot"></div>Building your report</div>
+    </div>
+  </div>
+</div>
+
+<!-- OUTPUT -->
+<div id="v-output" class="view">
+  <div class="out-wrap">
+    <div class="out-top">
+      <div><div class="out-meta" id="out-meta"></div><div class="out-h">Evaluation complete</div></div>
+      <div class="score-c" id="score-c"><span class="score-n" id="score-n">-</span><span class="score-l">/ 100</span></div>
+    </div>
+    <div class="card"><div class="card-l">Overall assessment</div><div class="card-t" id="out-sum" contenteditable="false"></div></div>
+    <div class="sec-cards" id="sec-cards"></div>
+    <div class="card"><div class="card-l">Suggested next steps</div><ul class="next-list" id="next-list"></ul></div>
+    <div class="act-bar">
+      <button class="btn btn-s" id="edit-btn" onclick="toggleEdit()"><span class="edit-dot"></span>Edit</button>
+      <button class="btn btn-s" onclick="copyEval()">Copy</button>
+      <button class="btn btn-s" onclick="openShare()">Share</button>
+      <button class="btn btn-s" onclick="exportPDF()">PDF</button>
+      <button class="btn btn-ghost" onclick="go('home')" style="margin-left:auto">+ New</button>
+    </div>
+  </div>
+  <footer style="margin-top:auto">
+    <span class="logo" onclick="go('home')">Rekol</span>
+    <div class="f-links"><a href="#">Privacy policy</a><a href="#">Terms</a><a href="mailto:hello@getrekol.com">Contact</a><a href="https://ituaefe.com" target="_blank" rel="noopener">Built by Itua</a></div>
+  </footer>
+</div>
+
+<!-- HISTORY -->
+<div id="v-history" class="view">
+  <div style="max-width:720px;margin:0 auto;padding:100px 20px 60px;flex:1;width:100%">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500;margin-bottom:6px">Evaluation history</div>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:32px">Your past call evaluations. Click any to review or share.</p>
+    <div id="hist-c"></div>
+  </div>
+  <footer style="margin-top:auto">
+    <span class="logo" onclick="go('home')">Rekol</span>
+    <div class="f-links"><a href="#">Privacy policy</a><a href="#">Terms</a><a href="mailto:hello@getrekol.com">Contact</a><a href="https://ituaefe.com" target="_blank" rel="noopener">Built by Itua</a></div>
+  </footer>
+</div>
+
+<!-- SIGN IN OVERLAY -->
+<div class="ov" id="ov-signin">
+  <div class="modal">
+    <div class="modal-ico">&#x26A1;</div>
+    <div class="modal-h">Save your evaluation</div>
+    <p class="modal-p">Save your history, share evaluations with your team, and build a coaching record over time.</p>
+    <div class="modal-acts">
+
+      <!-- Google -->
+      <button class="btn-sso btn-google-sso" onclick="doSignIn('google')">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+
+      <!-- Microsoft -->
+      <button class="btn-sso btn-ms-sso" onclick="doSignIn('microsoft')">
+        <svg width="16" height="16" viewBox="0 0 21 21"><rect x="0" y="0" width="10" height="10" fill="#F25022"/><rect x="11" y="0" width="10" height="10" fill="#7FBA00"/><rect x="0" y="11" width="10" height="10" fill="#00A4EF"/><rect x="11" y="11" width="10" height="10" fill="#FFB900"/></svg>
+        Continue with Microsoft
+      </button>
+
+      <div class="sso-divider"><span>or</span></div>
+
+      <!-- Email -->
+      <div id="email-form" style="display:flex;flex-direction:column;gap:8px">
+        <input class="email-in" id="signup-email" type="email" placeholder="Work email address">
+        <button class="btn btn-ac" style="width:100%;padding:12px;font-size:13px;justify-content:center" onclick="doEmailSignIn()">Continue with email →</button>
+      </div>
+
+      <div class="signin-footer">
+        By signing up you agree to our <a href="#" onclick="closeOv('ov-signin')">Privacy policy</a> · <a href="#">Terms</a>
+      </div>
+
+      <button class="btn-skip" onclick="closeOv('ov-signin')">Skip for now</button>
+    </div>
+  </div>
+</div>
+
+<!-- SHARE OVERLAY -->
+<div class="ov" id="ov-share">
+  <div class="modal">
+    <div class="modal-ico">&#x2197;</div>
+    <div class="modal-h">Share evaluation</div>
+    <p class="modal-p">A read-only link your manager or team can open. Every share is also a new person discovering Rekol.</p>
+    <div class="share-box"><input class="share-in" id="share-in" readonly><button class="btn btn-ac" onclick="copyShare()">Copy</button></div>
+    <div style="margin-top:12px"><button class="btn-skip" onclick="closeOv('ov-share')">Close</button></div>
+  </div>
+</div>
+
+<!-- ONBOARDING -->
+<div class="ob-ov" id="ob-ov">
+  <div class="ob-bg" onclick="closeOv('ob-ov')"></div>
+  <div class="ob-pop" id="ob-pop">
+    <div class="ob-sl" id="ob-sl">Step 1 of 3</div>
+    <div class="ob-h" id="ob-h"></div>
+    <p class="ob-p" id="ob-p"></p>
+    <div class="ob-row"><div class="ob-dots" id="ob-dots"></div><button class="btn btn-ac" id="ob-next" onclick="obNext()" style="padding:7px 14px;font-size:12px">Next</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var fw='MEDDIC',curEval=null,editMode=false,obStep=0;
+var signedIn=gl('rekol_signed')==='1',hadEval=gl('rekol_evald')==='1';
+var FW_FIELDS={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
+var FW_DESC={MEDDIC:'Metrics (quantifiable ROI/impact), Economic Buyer (ultimate decision maker identified and engaged), Decision Criteria (evaluation criteria mapped), Decision Process (buying steps and timeline understood), Identify Pain (critical business pain uncovered), Champion (internal advocate identified)',BANT:'Budget (confirmed budget exists), Authority (speaking with or have access to decision maker), Need (genuine business need established), Timeline (purchase timeline agreed or realistic)',SPIN:'Situation (context and background gathered), Problem (core problems identified), Implication (downstream consequences explored), Need-Payoff (value of solving the problem articulated)'};
+var OB=[{h:'Pick your framework',p:"Select MEDDIC, BANT, SPIN, or build a custom one. Hover the ? next to each name to see exactly what it covers."},{h:'Paste your transcript',p:"Copy from Gong, Chorus, Otter.ai, or anywhere. The word count shows when you've got enough for a strong evaluation."},{h:'Review, edit and share',p:"Every section scores red, amber or green. Edit the output, copy to Salesforce, or share a link with your manager in one click."}];
+
+function go(v){
+  document.querySelectorAll('.view').forEach(function(e){e.classList.remove('on')});
+  document.getElementById('v-'+v).classList.add('on');
+  window.scrollTo(0,0);
+  document.getElementById('hist-btn').style.display=signedIn?'flex':'none';
+  document.getElementById('signin-nav-btn').style.display=signedIn?'none':'flex';
+  if(v==='history')renderHistory();
+}
+window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>20)});
+
+function pickFw(f,btn){
+  fw=f;
+  document.querySelectorAll('.fw-tab').forEach(function(t){t.classList.remove('on')});
+  btn.classList.add('on');
+  document.getElementById('cf-box').classList.toggle('on',f==='Custom');
+}
+function addCf(){
+  var r=document.createElement('div');r.className='cf-row';
+  r.innerHTML='<input class="cf-in" placeholder="e.g. ROI calculated and shared" type="text"><button class="cf-rm" onclick="rmCf(this)">x</button>';
+  document.getElementById('cf-list').appendChild(r);
+}
+function rmCf(btn){if(document.querySelectorAll('#cf-list .cf-row').length>1)btn.parentElement.remove()}
+
+function updateWc(ta){
+  var w=ta.value.trim()?ta.value.trim().split(/\s+/).length:0;
+  var el=document.getElementById('wc');
+  el.textContent=w+' words';
+  el.className='wc'+(w>0&&w<100?' warn':w>=100?' ok':'');
+  document.getElementById('err').classList.remove('on');
+}
+
+async function runEval(){
+  var transcript=document.getElementById('ta').value.trim();
+  var dealName=document.getElementById("deal-name").value.trim();
+  var persona=document.getElementById("persona").value.trim();
+  if(!transcript||transcript.split(/\s+/).length<50){document.getElementById('err').classList.add('on');document.getElementById('ta').focus();return}
+  var customFields=[];
+  if(fw==='Custom'){
+    customFields=Array.from(document.querySelectorAll('#cf-list .cf-in')).map(function(i){return i.value.trim()}).filter(Boolean);
+    if(!customFields.length){toast('Add at least one custom framework field.');return}
+  }
+  go('loading');animSteps();
+  try{
+    var result=await callAPI(transcript,fw,customFields,dealName,persona);
+    curEval=Object.assign({},result,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid()});
+    saveHist(curEval);renderOut(curEval);go('output');
+    if(!hadEval&&!signedIn){hadEval=true;sl('rekol_evald','1');setTimeout(function(){openSignIn()},1500)}
+  }catch(e){go('home');toast('Something went wrong — please try again. Your transcript is still there.',5000);console.error(e)}
+}
+
+function animSteps(){
+  var ids=['ls1','ls2','ls3','ls4','ls5'];
+  ids.forEach(function(id){document.getElementById(id).className='ld-step'});
+  var i=0;
+  function tick(){
+    if(i>0)document.getElementById(ids[i-1]).className='ld-step done';
+    if(i<ids.length){document.getElementById(ids[i]).className='ld-step act';i++;setTimeout(tick,700+Math.random()*500)}
+  }
+  tick();
+}
+
+async function callAPI(transcript,framework,customFields,dealName,persona){
+  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona})});
+  if(!res.ok)throw new Error('API '+res.status);
+  var data=await res.json();
+  if(data.error)throw new Error(data.error);
+  return data;
+}
+
+function renderOut(ev){
+  var s=ev.overall_score;
+  document.getElementById('score-n').textContent=s;
+  document.getElementById('score-c').className='score-c '+(s>=70?'hi':s>=41?'mid':'lo');
+  document.getElementById('out-meta').textContent=(ev.dealName?ev.dealName+' · ':'')+ev.fw+' · '+new Date(ev.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  document.getElementById('out-sum').textContent=ev.summary;
+  var cards=document.getElementById('sec-cards');cards.innerHTML='';
+  ev.sections.forEach(function(sec,i){
+    var d=document.createElement('div');d.className='sec-card '+sec.status;
+    d.innerHTML='<div class="sec-hd" onclick="toggleSec(this.parentElement)"><div class="sec-dot"></div><div class="sec-nm">'+sec.name+'</div><div class="sec-sc">'+sec.score+'/100</div><div class="chev">v</div></div><div class="sec-bd"><div class="sec-sub">What was covered</div><div class="sec-txt" contenteditable="false">'+sec.covered+'</div><div class="sec-sub">Gaps</div><div class="sec-txt" contenteditable="false">'+sec.gaps+'</div><div class="sec-sub">Coaching tip</div><div class="sec-txt" contenteditable="false">'+sec.coaching+'</div><div class="sec-sub">Next step</div><div class="sec-txt" contenteditable="false" style="color:var(--tx)">&#x2192; '+sec.next_step+'</div></div>';
+    cards.appendChild(d);
+    if(sec.status==='red'&&i<2)toggleSec(d);
+  });
+  var nl=document.getElementById('next-list');nl.innerHTML='';
+  ev.next_steps.forEach(function(s){var li=document.createElement('li');li.textContent=s;nl.appendChild(li)});
+}
+function toggleSec(c){c.classList.toggle('open')}
+
+function toggleEdit(){
+  editMode=!editMode;
+  var btn=document.getElementById('edit-btn');
+  btn.classList.toggle('edit-on',editMode);
+  btn.innerHTML=editMode?'<span class="edit-dot" style="display:block"></span>Done':'<span class="edit-dot"></span>Edit';
+  var ce=editMode?'true':'false';
+  document.querySelectorAll('.sec-txt,#out-sum').forEach(function(el){el.contentEditable=ce});
+  if(editMode)toast('Click any text to edit it');else toast('Changes saved');
+}
+
+function copyEval(){
+  if(!curEval)return;
+  var t='REKOL EVALUATION\n'+(curEval.dealName||'Deal')+' · '+curEval.fw+' · Score: '+curEval.overall_score+'/100\n\nSUMMARY\n'+curEval.summary+'\n\n';
+  curEval.sections.forEach(function(s){t+=s.name.toUpperCase()+' · '+s.score+'/100 ('+s.status.toUpperCase()+')\nCovered: '+s.covered+'\nGaps: '+s.gaps+'\nNext: '+s.next_step+'\n\n'});
+  t+='NEXT STEPS\n'+curEval.next_steps.map(function(s){return '-> '+s}).join('\n');
+  navigator.clipboard.writeText(t).then(function(){toast('Copied — paste into Salesforce or your CRM')});
+}
+function openShare(){document.getElementById('share-in').value='https://getrekol.com/e/'+(curEval?curEval.id:uid());document.getElementById('ov-share').classList.add('on')}
+function copyShare(){navigator.clipboard.writeText(document.getElementById('share-in').value).then(function(){closeOv('ov-share');toast('Share link copied!')})}
+function exportPDF(){toast('PDF export coming soon — use Copy to paste into your CRM for now.')}
+
+function openSignIn(){document.getElementById('ov-signin').classList.add('on')}
+function doSignIn(provider){
+  // TODO: redirect to OAuth provider
+  // if(provider==='google') window.location.href='/auth/google';
+  // if(provider==='microsoft') window.location.href='/auth/microsoft';
+  signedIn=true;sl('rekol_signed','1');
+  closeOv('ov-signin');
+  document.getElementById('hist-btn').style.display='flex';
+  document.getElementById('signin-nav-btn').style.display='none';
+  toast('Signed in. Your evaluations are being saved.');
+  setTimeout(showOb,700);
+}
+function doEmailSignIn(){
+  var email=document.getElementById('signup-email').value.trim();
+  if(!email||!email.includes('@')){document.getElementById('signup-email').focus();toast('Enter a valid email address.');return}
+  // TODO: POST email to your backend / Google Apps Script to send magic link
+  // fetch('/api/auth/email', {method:'POST',body:JSON.stringify({email})})
+  document.getElementById('email-form').innerHTML='<div style="text-align:center;padding:12px 0"><div style="font-size:22px;margin-bottom:10px">&#x2709;</div><div style="font-weight:600;margin-bottom:6px">Check your inbox</div><p style="font-size:12px;color:var(--tx2)">We sent a sign-in link to <strong>'+email+'</strong></p></div>';
+}
+
+function saveHist(ev){var h=getHist();h.unshift(ev);sl('rekol_hist',JSON.stringify(h.slice(0,100)))}
+function getHist(){try{return JSON.parse(gl('rekol_hist')||'[]')}catch{return[]}}
+function renderHistory(){
+  var h=getHist();var c=document.getElementById('hist-c');
+  if(!h.length){c.innerHTML='<div class="empty"><div class="empty-ico">&#x1F4CB;</div><div class="empty-h">No evaluations yet</div><p class="empty-p">Run your first evaluation and it\'ll appear here.</p><button class="btn btn-ac btn-lg" onclick="go(\'home\')">Analyse a call</button></div>';return}
+  c.innerHTML='<div class="hist-g">'+h.map(function(ev){var sc=ev.overall_score;var cls=sc>=70?'hi':sc>=41?'mid':'lo';var dt=new Date(ev.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});return '<div class="hist-c" onclick="reopenEval(\''+ev.id+'\')"><div class="hist-top"><div class="hist-deal">'+(ev.dealName||'Untitled deal')+'</div><div class="hist-sc '+cls+'">'+sc+'</div></div><div class="hist-meta"><span>'+ev.fw+'</span><span>'+dt+'</span></div></div>'}).join('')+'</div>';
+}
+function reopenEval(id){var ev=getHist().find(function(e){return e.id===id});if(!ev)return;curEval=ev;renderOut(ev);go('output')}
+
+function showOb(){obStep=0;renderOb();document.getElementById('ob-ov').classList.add('on')}
+function renderOb(){
+  var s=OB[obStep];
+  document.getElementById('ob-sl').textContent='Step '+(obStep+1)+' of '+OB.length;
+  document.getElementById('ob-h').textContent=s.h;document.getElementById('ob-p').textContent=s.p;
+  document.getElementById('ob-dots').innerHTML=OB.map(function(_,i){return '<div class="ob-dot'+(i===obStep?' on':'')+'"></div>'}).join('');
+  document.getElementById('ob-next').textContent=obStep===OB.length-1?'Got it':'Next';
+  var pos=[{top:'28%',left:'50%',transform:'translateX(-50%)'},{top:'40%',left:'50%',transform:'translateX(-50%)'},{top:'35%',left:'50%',transform:'translateX(-50%)'}];
+  Object.assign(document.getElementById('ob-pop').style,pos[obStep]);
+}
+function obNext(){obStep<OB.length-1?(obStep++,renderOb()):closeOv('ob-ov')}
+
+function closeOv(id){document.getElementById(id).classList.remove('on')}
+function toast(msg,ms){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},ms||3200)}
+function uid(){return Math.random().toString(36).substr(2,9)}
+function gl(k){try{return localStorage.getItem(k)}catch{return null}}
+function sl(k,v){try{localStorage.setItem(k,v)}catch{}}
+
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('hist-btn').style.display=signedIn?'flex':'none';
+  document.getElementById('signin-nav-btn').style.display=signedIn?'none':'flex';
+  var count=124;
+  setInterval(function(){if(Math.random()>.65){count++;var el=document.getElementById('live-c');if(el)el.textContent=count+' evaluations run this week'}},9000);
+});
+</script>
+</body>
+</html>

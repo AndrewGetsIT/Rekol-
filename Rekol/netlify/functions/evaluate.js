@@ -20,7 +20,7 @@ function post(data) {
       res.on('end', () => resolve({ status: res.statusCode, body: raw }))
     })
     req.on('error', (err) => { console.error('HTTPS error:', err); reject(err) })
-    req.setTimeout(25000, () => { req.destroy(); reject(new Error('Timeout')) })
+    req.setTimeout(55000, () => { req.destroy(); reject(new Error('Timeout')) })
     req.write(body)
     req.end()
   })
@@ -30,7 +30,7 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' }
 
   try {
-    const { transcript, framework, customFields, dealName, persona } = JSON.parse(event.body)
+    const { transcript, framework, customFields, dealName, persona, mode } = JSON.parse(event.body)
 
     const FW_FIELDS = {
       MEDDIC: ['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],
@@ -45,7 +45,6 @@ exports.handler = async function (event) {
 
     let sections, fwDesc
     if (framework === 'Custom') {
-      // customFields can be array of strings or array of {name, desc} objects
       sections = customFields.map(f => typeof f === 'object' ? f.name : f)
       const fieldLines = customFields.map((f, i) => {
         if (typeof f === 'object') return (i+1) + '. ' + f.name + ': ' + (f.desc || f.name)
@@ -57,6 +56,46 @@ exports.handler = async function (event) {
       fwDesc = framework + ':\n' + FW_DESC[framework]
     }
 
+    // QUICK MODE — just score + summary, fast response
+    if (mode === 'quick') {
+      const quickPrompt = [
+        'You are an expert enterprise sales coach. Analyse this call transcript.',
+        '',
+        'Framework: ' + fwDesc,
+        dealName ? 'Deal: ' + dealName : '',
+        persona ? 'People on the call: ' + persona : '',
+        '',
+        'Transcript:',
+        transcript,
+        '',
+        'Return ONLY valid JSON, no markdown, no backticks:',
+        '{"overall_score":<0-100>,"summary":"<honest 2-3 sentence deal assessment>"}',
+        '',
+        'Be direct and specific. Score 0-100 honestly.'
+      ].filter(Boolean).join('\n')
+
+      console.log('Quick mode — framework:', framework)
+      const response = await post({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: quickPrompt }],
+      })
+
+      if (response.status !== 200) {
+        console.error('Anthropic quick error:', response.body)
+        return { statusCode: 502, body: JSON.stringify({ error: 'AI service error' }) }
+      }
+
+      const data = JSON.parse(response.body)
+      const raw = data.content[0].text.replace(/```json|```/g, '').trim()
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: raw,
+      }
+    }
+
+    // FULL MODE — all sections, coaching, next steps
     const secSchema = sections.map(s => JSON.stringify({
       name: s,
       score: '<0-100>',
@@ -67,7 +106,7 @@ exports.handler = async function (event) {
       next_step: '<one concrete next action>'
     })).join(',\n')
 
-    const prompt = [
+    const fullPrompt = [
       'You are an expert enterprise sales coach. Analyse this call transcript and return a structured evaluation as JSON.',
       '',
       'Framework: ' + fwDesc,
@@ -78,33 +117,30 @@ exports.handler = async function (event) {
       transcript,
       '',
       'Return ONLY valid JSON, no markdown, no backticks:',
-      '{"overall_score":<0-100>,"summary":"<honest 2-3 sentence deal assessment>","sections":[' + secSchema + '],"next_steps":["<step 1>","<step 2>","<step 3>"]}',
+      '{"sections":[' + secSchema + '],"next_steps":["<step 1>","<step 2>","<step 3>"]}',
       '',
       'Scoring: red=0-40, amber=41-70, green=71-100. Be specific and honest. If something was not in the transcript, say so clearly.'
-    ].filter(l => l !== null).join('\n')
+    ].filter(Boolean).join('\n')
 
-    console.log('Calling Anthropic, framework:', framework, 'transcript length:', transcript.length)
-
+    console.log('Full mode — framework:', framework, 'transcript length:', transcript.length)
     const response = await post({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4000,
-      messages: [{ role: 'user', content: prompt }],
+      messages: [{ role: 'user', content: fullPrompt }],
     })
 
     console.log('Response status:', response.status)
     if (response.status !== 200) {
-      console.error('Anthropic error:', response.body)
+      console.error('Anthropic full error:', response.body)
       return { statusCode: 502, body: JSON.stringify({ error: 'AI service error' }) }
     }
 
     const data = JSON.parse(response.body)
     const raw = data.content[0].text.replace(/```json|```/g, '').trim()
-    const result = JSON.parse(raw)
-
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(result),
+      body: raw,
     }
 
   } catch (err) {

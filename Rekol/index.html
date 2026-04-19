@@ -371,13 +371,13 @@
   <div class="ld-wrap">
     <div class="spin"><div class="spin-r"></div><div class="spin-r"></div></div>
     <div class="ld-h">Analysing your call</div>
-    <p class="ld-p">Generating your evaluation</p>
+    <p class="ld-p">This takes 15–20 seconds for longer transcripts</p>
     <div class="ld-steps">
-      <div class="ld-step" id="ls1"><div class="ld-dot"></div>Reading transcript</div>
-      <div class="ld-step" id="ls2"><div class="ld-dot"></div>Matching framework criteria</div>
-      <div class="ld-step" id="ls3"><div class="ld-dot"></div>Scoring each section</div>
-      <div class="ld-step" id="ls4"><div class="ld-dot"></div>Generating coaching tips</div>
-      <div class="ld-step" id="ls5"><div class="ld-dot"></div>Building your report</div>
+      <div class="ld-step" id="ls1"><div class="ld-dot"></div>Reading your transcript</div>
+      <div class="ld-step" id="ls2"><div class="ld-dot"></div>Identifying framework criteria</div>
+      <div class="ld-step" id="ls3"><div class="ld-dot"></div>Scoring each section red, amber or green</div>
+      <div class="ld-step" id="ls4"><div class="ld-dot"></div>Writing coaching tips and next steps</div>
+      <div class="ld-step" id="ls5"><div class="ld-dot"></div>Almost there — putting it all together</div>
     </div>
   </div>
 </div>
@@ -596,13 +596,56 @@ async function runEval(){
   }
   go('loading');animSteps();
   try{
-    var result=await callAPI(transcript,fw,customFields,dealName,persona);
+    // STEP 1 — quick call: score + summary (shows output in 2-4 seconds)
+    var quick=await callAPI(transcript,fw,customFields,dealName,persona,'quick');
+    curEval=Object.assign({},quick,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid(),sections:[],next_steps:[]});
+    renderOut(curEval);go('output');
+
+    // STEP 2 — full call: sections + next steps (fills in progressively)
+    showSectionSkeletons(fw==='Custom'?customFields.map(function(f){return typeof f==='object'?f.name:f}):getFwFields());
+    var full=await callAPI(transcript,fw,customFields,dealName,persona,'full');
+    curEval.sections=full.sections||[];
+    curEval.next_steps=full.next_steps||[];
+    renderSections(curEval);
+
     evalCount++;sl('rekol_count',evalCount.toString());syncEvalCount();
-    curEval=Object.assign({},result,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid()});
-    saveHist(curEval);renderOut(curEval);go('output');
-    updateLimitBar();
+    saveHist(curEval);updateLimitBar();
     if(!hadEval){hadEval=true;sl('rekol_evald','1')}
   }catch(e){go('home');toast('Something went wrong — please try again. Your transcript is still there.',5000);console.error(e)}
+}
+
+function getFwFields(){
+  var m={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
+  return m[fw]||[];
+}
+
+function showSectionSkeletons(sections){
+  var cards=document.getElementById('sec-cards');
+  cards.innerHTML='';
+  sections.forEach(function(name){
+    var d=document.createElement('div');
+    d.className='sec-card amber';
+    d.id='skel-'+name.replace(/\s+/g,'-');
+    d.innerHTML='<div class="sec-hd"><div class="sec-dot"></div><div class="sec-nm">'+name+'</div><div class="sec-sc" style="color:var(--tx3)">Scoring...</div><div class="chev">v</div></div>';
+    cards.appendChild(d);
+  });
+  document.getElementById('next-list').innerHTML='<li style="color:var(--tx3)">Generating next steps...</li>';
+}
+
+function renderSections(ev){
+  var cards=document.getElementById('sec-cards');
+  cards.innerHTML='';
+  ev.sections.forEach(function(sec,i){
+    var d=document.createElement('div');
+    d.className='sec-card '+sec.status;
+    d.innerHTML='<div class="sec-hd" onclick="toggleSec(this.parentElement)"><div class="sec-dot"></div><div class="sec-nm">'+sec.name+'</div><div class="sec-sc">'+sec.score+'/100</div><div class="chev">v</div></div><div class="sec-bd"><div class="sec-sub">What was covered</div><div class="sec-txt">'+sec.covered+'</div><div class="sec-sub">Gaps</div><div class="sec-txt">'+sec.gaps+'</div><div class="sec-sub">Coaching tip</div><div class="sec-txt">'+sec.coaching+'</div><div class="sec-sub">Next step</div><div class="sec-txt" style="color:var(--tx)">&#x2192; '+sec.next_step+'</div><button class="btn btn-s" style="margin-top:12px;padding:5px 11px;font-size:11px" onclick="copySection(this)">Copy section</button></div>';
+    cards.appendChild(d);
+    if(sec.status==='red'&&i<2)toggleSec(d);
+  });
+  var nl=document.getElementById('next-list');
+  nl.innerHTML='';
+  ev.next_steps.forEach(function(s){var li=document.createElement('li');li.textContent=s;nl.appendChild(li)});
+  saveHist(ev);
 }
 function updateLimitBar(){
   var bar=document.getElementById('eval-limit-bar');
@@ -624,8 +667,8 @@ function animSteps(){
   tick();
 }
 
-async function callAPI(transcript,framework,customFields,dealName,persona){
-  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona})});
+async function callAPI(transcript,framework,customFields,dealName,persona,mode){
+  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full'})});
   if(!res.ok)throw new Error('API '+res.status);
   var data=await res.json();
   if(data.error)throw new Error(data.error);
@@ -640,6 +683,7 @@ function copySection(btn){
 
 function renderOut(ev){
   updateLimitBar();
+  // Reset sections area
   var s=ev.overall_score;
   document.getElementById('score-n').textContent=s;
   document.getElementById('score-c').className='score-c '+(s>=70?'hi':s>=41?'mid':'lo');

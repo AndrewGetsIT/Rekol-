@@ -495,7 +495,12 @@
 // Supabase init
 var SUPA_URL = 'https://iqdnmlzamqqskfjysfzg.supabase.co'
 var SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZG5tbHphbXFxc2tmanpzZnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNTU3NTMsImV4cCI6MjA5MTkzMTc1M30.bYFx7o_Cvr8SoLPHO_dlguOZ9x7bX9ekf_IIDUSbIYo'
-var supa = supabase.createClient(SUPA_URL, SUPA_KEY)
+var supa = supabase.createClient(SUPA_URL, SUPA_KEY, {
+  auth: {
+    detectSessionInUrl: true,
+    flowType: 'implicit'
+  }
+})
 
 var fw='MEDDIC',curEval=null,editMode=false,obStep=0;
 var signedIn=false,hadEval=gl('rekol_evald')==='1';

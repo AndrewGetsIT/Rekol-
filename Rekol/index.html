@@ -789,14 +789,26 @@ document.addEventListener('DOMContentLoaded',function(){
   updateLimitBar()
 
   // Listen for auth state changes (handles OAuth redirects back to the page)
+  // Handle OAuth redirect — Supabase puts token in URL hash
   supa.auth.onAuthStateChange(function(event, session){
-    onAuthStateChange(session ? session.user : null)
+    console.log('Auth event:', event, session ? session.user.email : 'no user')
+    if(event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED'){
+      onAuthStateChange(session.user)
+    } else if(event === 'SIGNED_OUT'){
+      onAuthStateChange(null)
+    }
   })
 
-  // Check for existing session on load
+  // Check for existing session or OAuth callback token in URL
   supa.auth.getSession().then(function(res){
-    if(res.data && res.data.session) onAuthStateChange(res.data.session.user)
-    else onAuthStateChange(null)
+    console.log('Session check:', res.data.session ? res.data.session.user.email : 'no session')
+    if(res.data && res.data.session){
+      onAuthStateChange(res.data.session.user)
+      // Clean up URL hash after OAuth redirect
+      if(window.location.hash.includes('access_token')){
+        history.replaceState(null, '', window.location.pathname)
+      }
+    }
   })
 
   var count=124;

@@ -804,17 +804,29 @@ document.addEventListener('DOMContentLoaded',function(){
     }
   })
 
-  // Check for existing session or OAuth callback token in URL
-  supa.auth.getSession().then(function(res){
-    console.log('Session check:', res.data.session ? res.data.session.user.email : 'no session')
-    if(res.data && res.data.session){
-      onAuthStateChange(res.data.session.user)
-      // Clean up URL hash after OAuth redirect
-      if(window.location.hash.includes('access_token')){
-        history.replaceState(null, '', window.location.pathname)
-      }
+  // Handle OAuth callback — manually extract tokens from URL hash
+  if(window.location.hash.includes('access_token')){
+    var params = new URLSearchParams(window.location.hash.substring(1))
+    var accessToken = params.get('access_token')
+    var refreshToken = params.get('refresh_token')
+    console.log('OAuth callback detected, setting session...')
+    if(accessToken && refreshToken){
+      supa.auth.setSession({access_token: accessToken, refresh_token: refreshToken})
+        .then(function(res){
+          console.log('setSession result:', res.data.session ? res.data.session.user.email : 'failed', res.error)
+          if(res.data && res.data.session){
+            onAuthStateChange(res.data.session.user)
+            history.replaceState(null,'',window.location.pathname)
+          }
+        })
     }
-  })
+  } else {
+    // Check for existing session on normal page load
+    supa.auth.getSession().then(function(res){
+      console.log('Session check:', res.data.session ? res.data.session.user.email : 'no session')
+      if(res.data && res.data.session) onAuthStateChange(res.data.session.user)
+    })
+  }
 
   var count=124;
   setInterval(function(){if(Math.random()>.65){count++;var el=document.getElementById('live-c');if(el)el.textContent=count+' evaluations run this week'}},9000);

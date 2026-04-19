@@ -724,7 +724,7 @@ async function onAuthStateChange(user){
     document.getElementById('signout-btn').style.display='flex'
     // Load profile from Supabase
     await loadProfile()
-    if(!hadEval) setTimeout(showOb, 700)
+    if(!gl('rekol_ob_done')) setTimeout(showOb, 700)
   } else {
     signedIn=false; currentUser=null;
     document.getElementById('hist-btn').style.display='none'
@@ -782,7 +782,7 @@ function renderOb(){
   var pos=[{top:'28%',left:'50%',transform:'translateX(-50%)'},{top:'40%',left:'50%',transform:'translateX(-50%)'},{top:'35%',left:'50%',transform:'translateX(-50%)'}];
   Object.assign(document.getElementById('ob-pop').style,pos[obStep]);
 }
-function obNext(){obStep<OB.length-1?(obStep++,renderOb()):closeOv('ob-ov')}
+function obNext(){if(obStep<OB.length-1){obStep++;renderOb()}else{sl('rekol_ob_done','1');closeOv('ob-ov')}}
 
 function closeOv(id){document.getElementById(id).classList.remove('on')}
 function toast(msg,ms){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');setTimeout(function(){t.classList.remove('on')},ms||3200)}
@@ -797,8 +797,14 @@ document.addEventListener('DOMContentLoaded',function(){
   // Handle OAuth redirect — Supabase puts token in URL hash
   supa.auth.onAuthStateChange(function(event, session){
     console.log('Auth event:', event, session ? session.user.email : 'no user')
-    if(event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED'){
+    if(event === 'SIGNED_IN'){
       onAuthStateChange(session.user)
+    } else if(event === 'TOKEN_REFRESHED'){
+      // Session refreshed silently - update user state without showing onboarding
+      signedIn=true; currentUser=session.user;
+      document.getElementById('hist-btn').style.display='flex'
+      document.getElementById('signin-nav-btn').style.display='none'
+      document.getElementById('signout-btn').style.display='flex'
     } else if(event === 'SIGNED_OUT'){
       onAuthStateChange(null)
     }

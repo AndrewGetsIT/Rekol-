@@ -234,6 +234,33 @@
     .eval-limit-bar.warn{background:rgba(255,170,51,0.1);border:1px solid rgba(255,170,51,0.3);color:var(--amber);display:block}
     .eval-limit-bar.danger{background:rgba(255,82,82,0.1);border:1px solid rgba(255,82,82,0.3);color:var(--red);display:block}
     @media print{nav,footer,.act-bar,#ov-signin,#ov-upgrade,.ob-ov,.toast{display:none!important}.view{display:block!important}.sec-bd{display:block!important}}
+    /* Skeleton loading animations */
+    @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+    .skel-score{
+      display:inline-block;width:70px;height:14px;border-radius:4px;
+      background:linear-gradient(90deg,var(--s2) 25%,var(--bd2) 50%,var(--s2) 75%);
+      background-size:200% 100%;animation:shimmer 1.4s infinite;vertical-align:middle;
+    }
+    .skel-bar{
+      height:3px;border-radius:2px;margin-top:10px;
+      background:linear-gradient(90deg,var(--ac) 0%,var(--s2) 60%);
+      background-size:200% 100%;animation:shimmer 1.4s infinite;
+      opacity:0.35;
+    }
+    .skel-next{
+      display:flex;align-items:center;gap:8px;padding:6px 0;
+    }
+    .skel-next-line{
+      height:12px;border-radius:4px;flex:1;
+      background:linear-gradient(90deg,var(--s2) 25%,var(--bd2) 50%,var(--s2) 75%);
+      background-size:200% 100%;animation:shimmer 1.4s infinite;
+    }
+    .skel-spin{
+      width:12px;height:12px;border-radius:50%;flex-shrink:0;
+      border:1.5px solid var(--bd2);border-top-color:var(--ac);
+      animation:spin 0.9s linear infinite;
+    }
     .toast{position:fixed;bottom:20px;right:20px;z-index:500;background:var(--s2);border:1px solid var(--bd2);border-radius:8px;padding:10px 17px;font-size:13px;transform:translateY(60px);opacity:0;transition:all .28s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
     .toast.on{transform:translateY(0);opacity:1}
 
@@ -625,11 +652,13 @@ function showSectionSkeletons(sections){
   sections.forEach(function(name){
     var d=document.createElement('div');
     d.className='sec-card amber';
-    d.id='skel-'+name.replace(/\s+/g,'-');
-    d.innerHTML='<div class="sec-hd"><div class="sec-dot"></div><div class="sec-nm">'+name+'</div><div class="sec-sc" style="color:var(--tx3)">Scoring...</div><div class="chev">v</div></div>';
+    d.innerHTML='<div class="sec-hd"><div class="sec-dot" style="animation:pulse 1.2s ease-in-out infinite"></div><div class="sec-nm">'+name+'</div><div class="sec-sc"><span class="skel-score"></span></div></div><div class="skel-bar"></div>';
     cards.appendChild(d);
   });
-  document.getElementById('next-list').innerHTML='<li style="color:var(--tx3)">Generating next steps...</li>';
+  document.getElementById('next-list').innerHTML=
+    '<div class="skel-next"><div class="skel-spin"></div><div class="skel-next-line" style="max-width:80%"></div></div>'+
+    '<div class="skel-next"><div class="skel-spin"></div><div class="skel-next-line" style="max-width:65%"></div></div>'+
+    '<div class="skel-next"><div class="skel-spin"></div><div class="skel-next-line" style="max-width:72%"></div></div>';
 }
 
 function renderSections(ev){

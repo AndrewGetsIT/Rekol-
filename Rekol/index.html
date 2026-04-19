@@ -413,7 +413,7 @@
 <div id="v-output" class="view">
   <div class="out-wrap">
     <div class="out-top">
-      <div><div class="out-meta" id="out-meta"></div><div class="out-h">Evaluation complete</div></div>
+      <div><div class="out-meta" id="out-meta"></div><div class="out-h" id="out-h">Evaluation in progress</div></div>
       <div class="score-c" id="score-c"><span class="score-n" id="score-n">-</span><span class="score-l">/ 100</span></div>
     </div>
     <div class="card"><div class="card-l">Overall assessment</div><div class="card-t" id="out-sum" contenteditable="false"></div></div>
@@ -662,6 +662,7 @@ function showSectionSkeletons(sections){
 }
 
 function renderSections(ev){
+  document.getElementById('out-h').textContent='Evaluation complete';
   var cards=document.getElementById('sec-cards');
   cards.innerHTML='';
   ev.sections.forEach(function(sec,i){

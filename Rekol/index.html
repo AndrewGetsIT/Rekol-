@@ -345,7 +345,10 @@
       <input class="txt-in" id="persona" placeholder="e.g. David Chen (Head of RevOps, economic buyer), James Liu (CRO, final sign-off)">
     </div>
     <div class="field-mb">
-      <div class="field-label">Call transcript</div>
+      <div class="field-label" style="justify-content:space-between;width:100%">
+        Call transcript
+        <button class="btn-skip" style="font-size:11px;text-transform:none;letter-spacing:0;color:var(--ac)" onclick="fillDemo()">Try a demo transcript →</button>
+      </div>
       <textarea class="ta" id="ta" placeholder="Paste your call transcript here. You can get this from Gong, Chorus, Otter.ai, or any recording tool.&#10;&#10;The more detail you include, the better your evaluation will be." oninput="updateWc(this)"></textarea>
       <div class="ta-foot">
         <span class="wc" id="wc">0 words</span>
@@ -607,6 +610,15 @@ function updateWc(ta){
   el.textContent=w+' words';
   el.className='wc'+(w>0&&w<100?' warn':w>=100?' ok':'');
   document.getElementById('err').classList.remove('on');
+}
+
+function fillDemo(){
+  document.getElementById('deal-name').value='Acme Corp — Q3 ERP Rollout';
+  document.getElementById('persona').value='Sarah Mitchell (VP Operations, economic buyer), Tom Reeves (IT Director, technical evaluator)';
+  document.getElementById('ta').value='AE: Thanks for making the time, Sarah. You mentioned last week that your ops team is struggling with the manual reporting process — can you tell me more about the scale of that problem?\n\nSarah: Yeah it\'s significant. We have three people spending roughly two days each per month just pulling data into spreadsheets. That\'s six person-days wasted every cycle, and the data\'s still out of date by the time it gets to the board.\n\nAE: What does that cost you in real terms?\n\nSarah: Honestly, if I had to put a number on it — maybe £80k a year in wasted headcount. But the bigger issue is the decisions we\'re making on stale data. We missed a stock issue in Q2 because our ops report was three weeks behind.\n\nAE: I can see why that\'s critical. Tom, from a technical standpoint, what does your current stack look like?\n\nTom: We\'re running SAP for finance, Salesforce for CRM, and then a patchwork of spreadsheets and a legacy tool that we built in-house about eight years ago. It\'s not maintainable anymore.\n\nAE: Is there a formal evaluation process we should know about? Other vendors in the mix?\n\nTom: We\'re looking at two other platforms — one of your competitors and a build-it-ourselves option. Sarah has final sign-off but the IT team needs to approve anything from a security and integration standpoint.\n\nAE: What does the timeline look like for a decision?\n\nSarah: We\'d want something live before the end of Q4. So we\'re talking a decision by end of September at the latest.\n\nAE: And in terms of budget — is that allocated or still being approved?\n\nSarah: It\'s provisionally allocated. We have a £120k ceiling for this year. I\'d need to go back to the CFO if we go above that, which I\'d rather avoid.\n\nAE: Makes sense. Sarah, if we solve this — what does success look like for you personally six months in?\n\nSarah: Honestly? My team gets two days of their month back, and I can walk into the board meeting with a live dashboard instead of a PDF that\'s three weeks old. That\'s the dream.\n\nAE: That\'s really clear. I think we can get you there. Let me put together a scoped proposal and I\'ll send it over by Thursday — I\'ll include the integration spec for Tom as well.';
+  updateWc(document.getElementById('ta'));
+  document.getElementById('ta').scrollIntoView({behavior:'smooth',block:'center'});
+  toast('Demo transcript loaded — hit Run evaluation to see it in action');
 }
 
 async function runEval(){
@@ -883,14 +895,11 @@ function sl(k,v){try{localStorage.setItem(k,v)}catch{}}
 document.addEventListener('DOMContentLoaded',function(){
   updateLimitBar()
 
-  // Listen for auth state changes (handles OAuth redirects back to the page)
-  // Handle OAuth redirect — Supabase puts token in URL hash
   supa.auth.onAuthStateChange(function(event, session){
     console.log('Auth event:', event, session ? session.user.email : 'no user')
     if(event === 'SIGNED_IN'){
       onAuthStateChange(session.user)
     } else if(event === 'TOKEN_REFRESHED'){
-      // Session refreshed silently - update user state without showing onboarding
       signedIn=true; currentUser=session.user;
       document.getElementById('hist-btn').style.display='flex'
       document.getElementById('signin-nav-btn').style.display='none'
@@ -900,7 +909,6 @@ document.addEventListener('DOMContentLoaded',function(){
     }
   })
 
-  // Handle OAuth callback — manually extract tokens from URL hash
   if(window.location.hash.includes('access_token')){
     var params = new URLSearchParams(window.location.hash.substring(1))
     var accessToken = params.get('access_token')
@@ -917,7 +925,6 @@ document.addEventListener('DOMContentLoaded',function(){
         })
     }
   } else {
-    // Check for existing session on normal page load
     supa.auth.getSession().then(function(res){
       console.log('Session check:', res.data.session ? res.data.session.user.email : 'no session')
       if(res.data && res.data.session) onAuthStateChange(res.data.session.user)

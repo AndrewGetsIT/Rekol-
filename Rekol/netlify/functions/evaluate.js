@@ -79,7 +79,7 @@ exports.handler = async function (event) {
       console.log('Quick mode — framework:', framework)
       const response = await post({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 300,
+        max_tokens: 500,
         messages: [{ role: 'user', content: quickPrompt }],
       })
 
@@ -128,7 +128,7 @@ exports.handler = async function (event) {
     console.log('Full mode — framework:', framework, 'transcript length:', transcript.length)
     const response = await post({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
+      max_tokens: 8000,
       messages: [{ role: 'user', content: fullPrompt }],
     })
 

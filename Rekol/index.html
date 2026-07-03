@@ -47,21 +47,49 @@
 
     /* HOME */
     #v-home{padding-top:80px}
-    .hero{text-align:center;padding:64px 24px 0;position:relative}
+    .hero{text-align:center;padding:28px 24px 0;position:relative}
     .hero-glow{position:absolute;top:0;left:50%;transform:translateX(-50%);width:700px;height:400px;background:radial-gradient(ellipse,rgba(208,242,62,.04) 0%,transparent 65%);pointer-events:none}
-    .live-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 13px;border:1px solid var(--bd);border-radius:100px;font-size:12px;color:var(--tx2);margin-bottom:32px}
+    .live-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 13px;border:1px solid var(--bd);border-radius:100px;font-size:12px;color:var(--tx2);margin-bottom:18px}
     .live-dot{width:6px;height:6px;border-radius:50%;background:var(--ac);animation:blink 2.2s ease-in-out infinite}
     @keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.75)}}
-    .hero-h{font-family:'Cormorant Garamond',serif;font-size:clamp(52px,8vw,96px);font-weight:500;line-height:.95;letter-spacing:-.02em;margin-bottom:20px}
+    .hero-h{font-family:'Cormorant Garamond',serif;font-size:clamp(40px,6vw,72px);font-weight:500;line-height:.95;letter-spacing:-.02em;margin-bottom:14px}
     .hero-h em{font-style:italic;color:var(--ac)}
-    .hero-sub{font-size:clamp(13px,1.6vw,16px);color:var(--tx2);max-width:420px;margin:0 auto 44px;font-weight:300;line-height:1.7}
-    .tool-wrap{max-width:700px;margin:0 auto;padding:0 20px 80px;width:100%}
+    .hero-sub{font-size:clamp(13px,1.6vw,16px);color:var(--tx2);max-width:420px;margin:0 auto 24px;font-weight:300;line-height:1.7}
+    .tool-wrap{max-width:700px;margin:0 auto;padding:0 20px 40px;width:100%}
+    .tool-left{width:100%;min-width:0}
+    .tool-right{width:100%;margin-top:24px}
+    .good-toggle{background:none;border:none;font-size:12px;color:var(--tx3);cursor:pointer;padding:0;font-family:'Sora',sans-serif;margin-bottom:10px}
+    .good-toggle:hover{color:var(--tx)}
+    .good-panel{display:none;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:24px}
+    .good-panel.on{display:block}
+    .good-sub{font-size:11px;color:var(--tx3);margin:-4px 0 16px}
+    .good-fw-block{display:none}
+    .good-fw-block.on{display:block}
+    .good-card{background:var(--s2);border-radius:var(--rs);padding:12px 14px;margin-bottom:8px}
+    .good-card-hd{overflow:hidden}
+    .good-card-nm{font-weight:600;font-size:13px}
+    .good-tag{float:right;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)}
+    .good-quote{font-style:italic;color:var(--tx2);font-size:12px;margin-top:6px}
+    .good-placeholder{font-size:12px;color:var(--tx3);line-height:1.65}
+    @media(min-width:901px){
+      .tool-wrap{max-width:1200px;display:flex;align-items:flex-start;gap:48px}
+      .tool-left{flex:0 0 55%;max-width:55%}
+      .tool-right{flex:0 0 45%;max-width:45%;margin-top:0;position:sticky;top:100px}
+      .good-toggle{display:none}
+      .good-panel{display:block!important}
+    }
     .field-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--tx2);margin-bottom:10px;display:flex;align-items:center;gap:7px}
     .field-mb{margin-bottom:20px}
     .fw-tabs{display:flex;gap:6px;flex-wrap:wrap}
     .fw-tab{display:flex;align-items:center;gap:6px;padding:9px 15px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--s1);color:var(--tx2);font-family:'Sora',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .16s}
     .fw-tab:hover{border-color:var(--bd2);color:var(--tx)}
     .fw-tab.on{border-color:var(--ac);background:var(--ac-dim);color:var(--ac)}
+    .stage-pills{display:flex;gap:6px;flex-wrap:wrap}
+    .stage-pill{display:flex;align-items:center;gap:6px;padding:7px 13px;border:1px solid var(--bd);border-radius:var(--rs);background:var(--s1);color:var(--tx2);font-family:'Sora',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .16s}
+    .stage-pill:hover{border-color:var(--bd2);color:var(--tx)}
+    .stage-pill.on{border-color:var(--ac);background:var(--ac-dim);color:var(--ac)}
+    .stage-nudge{font-size:11px;color:var(--tx3);margin-top:8px;display:none}
+    .stage-nudge.on{display:block}
     .ib{width:14px;height:14px;border-radius:50%;background:var(--s2);border:1px solid var(--bd);color:var(--tx3);font-size:9px;cursor:default;display:inline-flex;align-items:center;justify-content:center;position:relative;font-weight:700;flex-shrink:0}
     .ib:hover .tip{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
     .tip{position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%) translateY(5px);background:var(--s2);border:1px solid var(--bd2);border-radius:8px;padding:9px 12px;font-size:11px;line-height:1.6;color:var(--tx2);width:200px;opacity:0;pointer-events:none;transition:all .18s;z-index:50;font-weight:400;text-transform:none;letter-spacing:0;white-space:normal}
@@ -87,7 +115,7 @@
     .err.on{display:block}
     .run-row{display:flex;justify-content:flex-end;margin-top:16px}
     .divider{border:none;border-top:1px solid var(--bd);margin:0 auto 60px;max-width:960px;width:calc(100% - 48px)}
-    .lp-wrap{max-width:960px;margin:0 auto;padding:0 24px 80px}
+    .lp-wrap{max-width:960px;margin:0 auto;padding:0 24px 48px}
     .lp-label{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ac);margin-bottom:18px}
     .lp-h{font-family:'Cormorant Garamond',serif;font-size:clamp(32px,4.5vw,50px);font-weight:500;line-height:1.06;margin-bottom:48px}
     .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
@@ -180,7 +208,7 @@
     /* HISTORY */
     #v-history{padding-top:80px}
     .hist-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:9px}
-    .hist-c{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:17px 19px;cursor:pointer;transition:all .16s}
+    .hist-c{display:block;background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:17px 19px;cursor:pointer;transition:all .16s;color:inherit;text-decoration:none}
     .hist-c:hover{border-color:var(--bd2);transform:translateY(-2px)}
     .hist-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
     .hist-deal{font-weight:600;font-size:13px}
@@ -193,6 +221,36 @@
     .empty-ico{font-size:40px;margin-bottom:18px;opacity:.4}
     .empty-h{font-family:'Cormorant Garamond',serif;font-size:26px;margin-bottom:9px}
     .empty-p{font-size:13px;color:var(--tx2);margin-bottom:24px}
+
+    /* TRENDS */
+    #v-trends{padding-top:80px}
+    .trends-wrap{max-width:760px;margin:0 auto;padding:48px 20px;width:100%;flex:1}
+    .trends-h{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500;margin-bottom:6px}
+    .trends-sub{font-size:13px;color:var(--tx2);margin-bottom:28px}
+    .chart-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-bottom:20px}
+    .callout-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+    @media(max-width:600px){.callout-row{grid-template-columns:1fr}}
+    .callout-l{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:7px;display:flex;align-items:center;gap:6px}
+    .callout-nm{font-size:15px;font-weight:600;margin-bottom:4px}
+    .callout-d{font-size:12px;color:var(--tx2);line-height:1.6}
+    .fw-breakdown-h{font-size:16px;font-weight:600;margin:28px 0 12px;font-family:'Cormorant Garamond',serif;font-size:22px}
+    .breakdown-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--bd)}
+    .breakdown-row:last-child{border-bottom:none}
+    .breakdown-nm{font-size:13px;color:var(--tx2);width:150px;flex-shrink:0}
+    .breakdown-bar-track{flex:1;height:5px;border-radius:3px;background:var(--bd);overflow:hidden}
+    .breakdown-bar-fill{height:100%;background:var(--ac);border-radius:3px}
+    .breakdown-sc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx2);width:34px;text-align:right;flex-shrink:0}
+
+    /* PRACTICE THIS */
+    .practice-tabs{display:flex;gap:6px;margin-bottom:14px}
+    .practice-panel{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-bottom:20px}
+    .practice-body{font-size:13px;color:var(--tx2);line-height:1.75;white-space:pre-wrap}
+    .practice-foot{display:flex;justify-content:flex-end;margin-top:14px}
+
+    /* DIGEST OPT-IN */
+    .digest-nudge{font-size:11px;color:var(--tx3);display:flex;align-items:center;gap:8px;margin:-4px 0 24px}
+    .digest-nudge button{background:none;border:none;color:var(--ac);font-size:11px;font-weight:600;cursor:pointer;padding:0;font-family:'Sora',sans-serif}
+    .digest-nudge button:hover{text-decoration:underline}
 
     /* OVERLAYS */
     .ov{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(10px);z-index:200;display:none;align-items:center;justify-content:center;padding:24px}
@@ -291,6 +349,7 @@
 <nav id="nav">
   <span class="logo" onclick="go('home')">Rekol</span>
   <div class="nav-r">
+    <button class="btn btn-ghost" id="trends-btn" onclick="go('trends')" style="display:none">Trends</button>
     <button class="btn btn-ghost" id="hist-btn" onclick="go('history')" style="display:none">History</button>
     <button class="btn btn-ghost" id="signin-nav-btn" onclick="openSignIn()">Sign in</button>
     <button class="btn btn-ghost" id="signout-btn" onclick="doSignOut()" style="display:none">Sign out</button>
@@ -307,13 +366,24 @@
   </div>
 
   <div class="tool-wrap">
+   <div class="tool-left">
+    <div class="field-mb">
+      <div class="field-label">What stage is this deal at? <span style="color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <div class="stage-pills">
+        <button class="stage-pill" onclick="pickStage('Discovery',this)">Discovery</button>
+        <button class="stage-pill" onclick="pickStage('Demo',this)">Demo</button>
+        <button class="stage-pill" onclick="pickStage('Negotiation',this)">Negotiation</button>
+        <button class="stage-pill" onclick="pickStage('Closing',this)">Closing</button>
+      </div>
+      <div class="stage-nudge" id="stage-nudge"></div>
+    </div>
     <div class="field-mb">
       <div class="field-label">Framework</div>
       <div class="fw-tabs">
-        <button class="fw-tab on" onclick="pickFw('MEDDIC',this)">MEDDIC<span class="ib">?<span class="tip">Metrics · Economic Buyer · Decision Criteria · Decision Process · Identify Pain · Champion. The gold standard for enterprise deals.</span></span></button>
-        <button class="fw-tab" onclick="pickFw('BANT',this)">BANT<span class="ib">?<span class="tip">Budget · Authority · Need · Timeline. Fast qualification for high-velocity and SMB sales cycles.</span></span></button>
-        <button class="fw-tab" onclick="pickFw('SPIN',this)">SPIN<span class="ib">?<span class="tip">Situation · Problem · Implication · Need-Payoff. Consultative selling that uncovers deep pain before pitching.</span></span></button>
-        <button class="fw-tab" onclick="pickFw('Custom',this)">Custom<span class="ib">?<span class="tip">Define your own evaluation criteria. Name each field and Rekol scores against exactly what matters to your process.</span></span></button>
+        <button class="fw-tab on" data-fw="MEDDIC" onclick="pickFw('MEDDIC',this)">MEDDIC<span class="ib">?<span class="tip">Metrics · Economic Buyer · Decision Criteria · Decision Process · Identify Pain · Champion. The gold standard for enterprise deals.</span></span></button>
+        <button class="fw-tab" data-fw="BANT" onclick="pickFw('BANT',this)">BANT<span class="ib">?<span class="tip">Budget · Authority · Need · Timeline. Fast qualification for high-velocity and SMB sales cycles.</span></span></button>
+        <button class="fw-tab" data-fw="SPIN" onclick="pickFw('SPIN',this)">SPIN<span class="ib">?<span class="tip">Situation · Problem · Implication · Need-Payoff. Consultative selling that uncovers deep pain before pitching.</span></span></button>
+        <button class="fw-tab" data-fw="Custom" onclick="pickFw('Custom',this)">Custom<span class="ib">?<span class="tip">Define your own evaluation criteria. Name each field and Rekol scores against exactly what matters to your process.</span></span></button>
       </div>
       <div class="cf-box" id="cf-box">
         <div class="field-mb" style="margin-bottom:14px">
@@ -356,12 +426,48 @@
       </div>
     </div>
     <div class="run-row"><button class="btn btn-ac btn-xl" onclick="runEval()">Run evaluation →</button></div>
+   </div>
+
+   <div class="tool-right">
+    <button class="good-toggle" onclick="toggleGoodPanel()" id="good-toggle-btn">Show examples →</button>
+    <div class="good-panel" id="good-panel">
+      <div class="field-label">What good looks like</div>
+      <p class="good-sub">Switch framework to update examples</p>
+
+      <div class="good-fw-block on" data-good-fw="MEDDIC">
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Metrics</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We're losing around £80k a year to manual reporting alone"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Economic Buyer</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Sarah has final sign-off on anything above £50k — she's on the call today"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Decision Criteria</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We're evaluating on integration speed, security compliance, and total cost of ownership"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Decision Process</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We shortlist by end of August, legal review takes two weeks, then board sign-off"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Identify Pain</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We missed a stock issue in Q2 because our ops report was three weeks behind"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Champion</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Tom said he'd present our proposal to the board himself"</div></div>
+      </div>
+
+      <div class="good-fw-block" data-good-fw="BANT">
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Budget</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We have £120k provisionally allocated for this — CFO approved it last quarter"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Authority</span><span class="good-tag">GREEN</span></div><div class="good-quote">"I'm the one who signs the contract — I don't need to go back to anyone else"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Need</span><span class="good-tag">GREEN</span></div><div class="good-quote">"If we don't fix this before Q4 we'll miss our ops targets for the third year running"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Timeline</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We need something live before the end of Q4 — decision by end of September"</div></div>
+      </div>
+
+      <div class="good-fw-block" data-good-fw="SPIN">
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Situation</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We're running SAP for finance, Salesforce for CRM, and a legacy in-house tool built eight years ago"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Problem</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Three people spend two days each per month just pulling data into spreadsheets"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Implication</span><span class="good-tag">GREEN</span></div><div class="good-quote">"The stale data cost us a missed stock issue in Q2 — that was a £200k write-off"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Need-Payoff</span><span class="good-tag">GREEN</span></div><div class="good-quote">"If we could get that reporting automated, my team gets two days back and I walk into board meetings with live data"</div></div>
+      </div>
+
+      <div class="good-fw-block" data-good-fw="Custom">
+        <p class="good-placeholder">Your custom framework examples will appear here once you've saved your fields.</p>
+      </div>
+    </div>
+   </div>
   </div>
 
   <hr class="divider">
 
   <div class="lp-wrap">
-    <div style="margin-bottom:72px">
+    <div style="margin-bottom:40px">
       <div class="lp-label">How it works</div>
       <h2 class="lp-h">Three steps.<br>Zero admin.</h2>
       <div class="steps">
@@ -370,7 +476,7 @@
         <div class="step"><div class="step-n">03</div><div class="step-t">Get your evaluation</div><p class="step-d">Red, amber, green scoring per section. Gaps, coaching tips, and next steps — in 30 seconds.</p></div>
       </div>
     </div>
-    <div style="margin-bottom:72px">
+    <div style="margin-bottom:40px">
       <div class="lp-label">Frameworks</div>
       <h2 class="lp-h">Whichever way<br>you sell.</h2>
       <div class="fw-grid">
@@ -382,7 +488,7 @@
     </div>
     <div>
       <div class="lp-label">WHAT A<span style="text-transform:none">Es</span> SAY</div>
-      <h2 class="lp-h">Early feedback.</h2>
+      <h2 class="lp-h">What AEs say.</h2>
       <div class="testi-g">
         <div class="testi"><p class="testi-q">"I used to spend 20 minutes writing up call notes after every meeting. Now I paste the transcript and I'm done in 30 seconds. The coaching tips alone are worth it."</p><div class="testi-a"><div class="testi-av">J</div><div><div class="testi-n">James R.</div><div class="testi-r">Senior AE · SaaS</div></div></div></div>
         <div class="testi"><p class="testi-q">"The MEDDIC scoring opened my eyes. I thought I'd qualified the deal — turns out I'd never surfaced the economic buyer. Saved me weeks chasing a deal that was never going to close."</p><div class="testi-a"><div class="testi-av">S</div><div><div class="testi-n">Sarah K.</div><div class="testi-r">Enterprise AE · Fintech</div></div></div></div>
@@ -393,7 +499,7 @@
 
   <footer>
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -426,12 +532,38 @@
     <div id="eval-limit-bar"></div>
     <div class="act-bar">
       <button class="btn btn-s" onclick="window.print()">Print / Save PDF</button>
+      <button class="btn btn-s" onclick="openPractice()">Practice this →</button>
+      <button class="btn btn-s" onclick="openShare()">Share eval →</button>
       <button class="btn btn-ghost" onclick="go('home')" style="margin-left:auto">+ New evaluation</button>
     </div>
+    <div class="practice-panel" id="practice-panel" style="display:none">
+      <div class="practice-tabs">
+        <button class="fw-tab on" id="pt-tab-email" onclick="switchPracticeTab('email')">Follow-up email</button>
+        <button class="fw-tab" id="pt-tab-script" onclick="switchPracticeTab('script')">Next-call script</button>
+      </div>
+      <div class="practice-body" id="practice-body"></div>
+      <div class="practice-foot"><button class="btn btn-s" id="practice-copy" onclick="copyPractice()" style="display:none">Copy</button></div>
+    </div>
+    <div class="digest-nudge" id="digest-nudge" style="display:none">Get a weekly summary of your scores by email <button onclick="enableDigest()">Turn on</button></div>
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+  </footer>
+</div>
+
+<!-- TRENDS -->
+<div id="v-trends" class="view">
+  <div class="trends-wrap">
+    <div class="trends-h">Trends</div>
+    <p class="trends-sub">Your scores across your last 10 evaluations.</p>
+    <div class="chart-card" id="trends-chart"></div>
+    <div class="callout-row" id="trends-callouts"></div>
+    <div id="trends-breakdown"></div>
+  </div>
+  <footer style="margin-top:auto">
+    <span class="logo" onclick="go('home')">Rekol</span>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -441,6 +573,23 @@
     <div style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500;margin-bottom:6px">Evaluation history</div>
     <p style="font-size:13px;color:var(--tx2);margin-bottom:32px">Your past call evaluations. Click any to review or share.</p>
     <div id="hist-c"></div>
+  </div>
+  <footer style="margin-top:auto">
+    <span class="logo" onclick="go('home')">Rekol</span>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+  </footer>
+</div>
+
+<!-- TEAM VIEW -->
+<div id="v-team" class="view">
+  <div style="max-width:900px;margin:0 auto;padding:100px 20px 60px;flex:1;width:100%">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500;margin-bottom:6px">Team view</div>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:24px">Enter your team code to see evaluations shared by your team.</p>
+    <div style="display:flex;gap:8px;margin-bottom:32px;max-width:420px">
+      <input class="txt-in" id="team-code-lookup" placeholder="e.g. ACME-SALES" type="text" onkeydown="if(event.key==='Enter')loadTeamView()">
+      <button class="btn btn-ac" style="white-space:nowrap" onclick="loadTeamView()">View team</button>
+    </div>
+    <div id="team-results"></div>
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
@@ -491,7 +640,12 @@
     <div class="modal-ico">&#x2197;</div>
     <div class="modal-h">Share evaluation</div>
     <p class="modal-p">A read-only link your manager or team can open. Every share is also a new person discovering Rekol.</p>
-    <div class="share-box"><input class="share-in" id="share-in" readonly><button class="btn btn-ac" onclick="copyShare()">Copy</button></div>
+    <div class="field-mb" style="text-align:left;margin-bottom:14px">
+      <div class="field-label">Team code <span style="color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
+      <input class="txt-in" id="team-code-in" placeholder="e.g. ACME-SALES" type="text">
+    </div>
+    <div id="share-generate-row"><button class="btn btn-ac" style="width:100%;padding:12px;justify-content:center" onclick="generateShareLink(this)">Generate link</button></div>
+    <div class="share-box" id="share-box" style="display:none"><input class="share-in" id="share-in" readonly><button class="btn btn-ac" onclick="copyShare()">Copy</button></div>
     <div style="margin-top:12px"><button class="btn-skip" onclick="closeOv('ov-share')">Close</button></div>
   </div>
 </div>
@@ -537,9 +691,14 @@ var supa = supabase.createClient(SUPA_URL, SUPA_KEY, {
 })
 
 var fw='MEDDIC',curEval=null,editMode=false,obStep=0;
+var readOnlyMode=false;
+var practiceData=null,activePracticeTab='email';
+var dealStage='',stageFwRecommended='';
+var STAGE_FW={Discovery:'SPIN',Demo:'MEDDIC',Negotiation:'MEDDIC',Closing:'BANT'};
 var signedIn=false,hadEval=gl('rekol_evald')==='1';
 var evalCount=parseInt(gl('rekol_count')||'0');
 var isPro=gl('rekol_pro')==='1';
+var digestEnabled=gl('rekol_digest')==='1';
 var FREE_LIMIT=10;
 var currentUser=null;
 var FW_FIELDS={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
@@ -551,12 +710,14 @@ function go(v){
   document.getElementById('v-'+v).classList.add('on');
   window.scrollTo(0,0);
   document.getElementById('hist-btn').style.display=signedIn?'flex':'none';
+  document.getElementById('trends-btn').style.display=getHist().length>=2?'flex':'none';
   document.getElementById('signin-nav-btn').style.display=signedIn?'none':'flex';
   if(v==='history')renderHistory();
+  if(v==='trends')renderTrends();
 }
 window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>20)});
 
-function pickFw(f,btn){
+function pickFw(f,btn,fromStage){
   if(f==='Custom'&&!signedIn){
     toast('Sign in to use custom frameworks');
     openSignIn();
@@ -567,6 +728,35 @@ function pickFw(f,btn){
   btn.classList.add('on');
   document.getElementById('cf-box').classList.toggle('on',f==='Custom');
   if(f==='Custom') loadCustomFw();
+  if(!fromStage&&f!==stageFwRecommended) hideStageNudge();
+  document.querySelectorAll('.good-fw-block').forEach(function(b){b.classList.toggle('on',b.dataset.goodFw===f)});
+}
+
+function toggleGoodPanel(){
+  var panel=document.getElementById('good-panel');
+  var btn=document.getElementById('good-toggle-btn');
+  var open=panel.classList.toggle('on');
+  btn.textContent=open?'Hide examples':'Show examples →';
+}
+
+function pickStage(stage,btn){
+  dealStage=stage;
+  document.querySelectorAll('.stage-pill').forEach(function(t){t.classList.remove('on')});
+  btn.classList.add('on');
+  var rec=STAGE_FW[stage];
+  stageFwRecommended=rec;
+  var fwBtn=document.querySelector('.fw-tab[data-fw="'+rec+'"]');
+  if(fwBtn) pickFw(rec,fwBtn,true);
+  showStageNudge(stage,rec);
+}
+function showStageNudge(stage,rec){
+  var el=document.getElementById('stage-nudge');
+  el.textContent='We recommend '+rec+' for '+stage.toLowerCase()+'-stage deals — you can still change this.';
+  el.classList.add('on');
+}
+function hideStageNudge(){
+  var el=document.getElementById('stage-nudge');
+  el.classList.remove('on');
 }
 function addCf(){
   var r=document.createElement('div');r.className='cf-row';
@@ -640,13 +830,13 @@ async function runEval(){
   go('loading');animSteps();
   try{
     // STEP 1 — quick call: score + summary (shows output in 2-4 seconds)
-    var quick=await callAPI(transcript,fw,customFields,dealName,persona,'quick');
+    var quick=await callAPI(transcript,fw,customFields,dealName,persona,'quick',dealStage);
     curEval=Object.assign({},quick,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid(),sections:[],next_steps:[]});
     renderOut(curEval);go('output');
 
     // STEP 2 — full call: sections + next steps (fills in progressively)
     showSectionSkeletons(fw==='Custom'?customFields.map(function(f){return typeof f==='object'?f.name:f}):getFwFields());
-    var full=await callAPI(transcript,fw,customFields,dealName,persona,'full');
+    var full=await callAPI(transcript,fw,customFields,dealName,persona,'full',dealStage);
     curEval.sections=full.sections||[];
     curEval.next_steps=full.next_steps||[];
     renderSections(curEval);
@@ -677,7 +867,7 @@ function showSectionSkeletons(sections){
     '<div class="skel-next"><div class="skel-spin"></div><div class="skel-next-line" style="max-width:72%"></div></div>';
 }
 
-function renderSections(ev){
+function renderSections(ev,silent){
   document.getElementById('out-h').textContent='Evaluation complete';
   var cards=document.getElementById('sec-cards');
   cards.innerHTML='';
@@ -691,7 +881,13 @@ function renderSections(ev){
   var nl=document.getElementById('next-list');
   nl.innerHTML='';
   ev.next_steps.forEach(function(s){var li=document.createElement('li');li.textContent=s;nl.appendChild(li)});
-  saveHist(ev);
+  if(!silent){
+    saveHist(ev);
+    if(signedIn){
+      syncEvalToSupabase(ev);
+      document.getElementById('digest-nudge').style.display=digestEnabled?'none':'flex';
+    }
+  }
 }
 function updateLimitBar(){
   var bar=document.getElementById('eval-limit-bar');
@@ -713,8 +909,8 @@ function animSteps(){
   tick();
 }
 
-async function callAPI(transcript,framework,customFields,dealName,persona,mode){
-  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full'})});
+async function callAPI(transcript,framework,customFields,dealName,persona,mode,dealStage){
+  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full',dealStage:dealStage})});
   if(!res.ok)throw new Error('API '+res.status);
   var data=await res.json();
   if(data.error)throw new Error(data.error);
@@ -729,6 +925,8 @@ function copySection(btn){
 
 function renderOut(ev){
   updateLimitBar();
+  resetPractice();
+  document.getElementById('digest-nudge').style.display='none';
   // Reset sections area
   var s=ev.overall_score;
   document.getElementById('score-n').textContent=s;
@@ -772,8 +970,126 @@ function copyEval(){
   t+='NEXT STEPS\n'+curEval.next_steps.map(function(s){return '-> '+s}).join('\n');
   navigator.clipboard.writeText(t).then(function(){toast('Copied — paste into Salesforce or your CRM')});
 }
-function openShare(){document.getElementById('share-in').value='https://getrekol.com/e/'+(curEval?curEval.id:uid());document.getElementById('ov-share').classList.add('on')}
+function openShare(){
+  if(!curEval){toast('Run an evaluation first.');return}
+  document.getElementById('team-code-in').value='';
+  document.getElementById('share-generate-row').style.display='block';
+  document.getElementById('share-box').style.display='none';
+  document.getElementById('ov-share').classList.add('on');
+}
+
+async function generateShareLink(btn){
+  btn.disabled=true;btn.textContent='Generating…';
+  try{
+    var teamCode=document.getElementById('team-code-in').value.trim();
+    var aeName=(currentUser&&(currentUser.user_metadata&&currentUser.user_metadata.full_name||currentUser.email))||curEval.persona||'';
+    var res=await fetch('/.netlify/functions/share',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      evalJson:curEval,teamCode:teamCode||null,aeName:aeName||null
+    })});
+    if(!res.ok)throw new Error('API '+res.status);
+    var data=await res.json();
+    if(data.error)throw new Error(data.error);
+    document.getElementById('share-in').value='https://getrekol.com/e/'+data.id;
+    document.getElementById('share-generate-row').style.display='none';
+    document.getElementById('share-box').style.display='flex';
+  }catch(e){
+    toast('Could not generate share link — please try again.');
+    console.error(e);
+    btn.disabled=false;btn.textContent='Generate link';
+  }
+}
+
 function copyShare(){navigator.clipboard.writeText(document.getElementById('share-in').value).then(function(){closeOv('ov-share');toast('Share link copied!')})}
+
+function checkSharedEvalRoute(){
+  var m=window.location.pathname.match(/^\/e\/([A-Za-z0-9-]+)/);
+  if(!m)return false;
+  readOnlyMode=true;
+  loadSharedEval(m[1]);
+  return true;
+}
+
+async function loadSharedEval(id){
+  try{
+    var res=await fetch('/.netlify/functions/share?id='+encodeURIComponent(id));
+    if(!res.ok)throw new Error('API '+res.status);
+    var data=await res.json();
+    if(!data||!data.eval_json)throw new Error('Not found');
+    curEval=data.eval_json;
+    renderOut(curEval);
+    if(curEval.sections&&curEval.sections.length)renderSections(curEval,true);
+    applyReadOnlyUI();
+    go('output');
+  }catch(e){
+    toast('This shared evaluation could not be found.');
+    console.error(e);
+  }
+}
+
+function applyReadOnlyUI(){
+  document.querySelector('#v-output .act-bar').style.display='none';
+  document.getElementById('practice-panel').style.display='none';
+  document.getElementById('digest-nudge').style.display='none';
+}
+
+function resetPractice(){
+  practiceData=null;
+  activePracticeTab='email';
+  document.getElementById('practice-panel').style.display='none';
+  document.getElementById('pt-tab-email').classList.add('on');
+  document.getElementById('pt-tab-script').classList.remove('on');
+  document.getElementById('practice-copy').style.display='none';
+  document.getElementById('practice-body').innerHTML='';
+}
+
+function openPractice(){
+  var panel=document.getElementById('practice-panel');
+  if(panel.style.display!=='none'){panel.style.display='none';return}
+  panel.style.display='block';
+  panel.scrollIntoView({behavior:'smooth',block:'nearest'});
+  if(!practiceData)fetchPractice();else renderPracticeTab();
+}
+
+async function fetchPractice(){
+  document.getElementById('practice-copy').style.display='none';
+  document.getElementById('practice-body').innerHTML=
+    '<div class="skel-next"><div class="skel-spin"></div><div class="skel-next-line" style="max-width:88%"></div></div>'+
+    '<div class="skel-next"><div class="skel-spin"></div><div class="skel-next-line" style="max-width:74%"></div></div>'+
+    '<div class="skel-next"><div class="skel-spin"></div><div class="skel-next-line" style="max-width:81%"></div></div>';
+  try{
+    var res=await fetch('/.netlify/functions/practice',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      dealName:curEval.dealName,persona:curEval.persona,fw:curEval.fw,sections:curEval.sections,next_steps:curEval.next_steps
+    })});
+    if(!res.ok)throw new Error('API '+res.status);
+    var data=await res.json();
+    if(data.error)throw new Error(data.error);
+    practiceData=data;
+    renderPracticeTab();
+  }catch(e){
+    document.getElementById('practice-body').textContent='Something went wrong generating this — please try again.';
+    console.error(e);
+  }
+}
+
+function switchPracticeTab(tab){
+  activePracticeTab=tab;
+  document.getElementById('pt-tab-email').classList.toggle('on',tab==='email');
+  document.getElementById('pt-tab-script').classList.toggle('on',tab==='script');
+  renderPracticeTab();
+}
+
+function renderPracticeTab(){
+  if(!practiceData)return;
+  var text=activePracticeTab==='email'?practiceData.email:practiceData.script;
+  document.getElementById('practice-body').textContent=text||'';
+  document.getElementById('practice-copy').style.display='inline-flex';
+}
+
+function copyPractice(){
+  if(!practiceData)return;
+  var text=activePracticeTab==='email'?practiceData.email:practiceData.script;
+  navigator.clipboard.writeText(text).then(function(){toast('Copied to clipboard')});
+}
 function exportPDF(){toast('PDF export coming soon — use Copy to paste into your CRM for now.')}
 
 function openSignIn(){document.getElementById('ov-signin').classList.add('on')}
@@ -841,14 +1157,25 @@ async function loadProfile(){
   if(res.data){
     evalCount = res.data.eval_count || 0
     isPro = res.data.is_pro || false
+    digestEnabled = res.data.digest_enabled || false
     sl('rekol_count', evalCount.toString())
     sl('rekol_pro', isPro ? '1' : '0')
+    sl('rekol_digest', digestEnabled ? '1' : '0')
     // Load saved custom framework
     if(res.data.custom_framework){
       sl('rekol_custom_fw', JSON.stringify(res.data.custom_framework))
     }
     updateLimitBar()
   }
+}
+
+async function enableDigest(){
+  if(!currentUser) return
+  digestEnabled=true
+  sl('rekol_digest','1')
+  document.getElementById('digest-nudge').style.display='none'
+  await supa.from('profiles').update({ digest_enabled: true }).eq('id', currentUser.id)
+  toast('Weekly email summaries turned on.')
 }
 
 async function syncEvalCount(){
@@ -865,6 +1192,18 @@ async function syncCustomFw(fw){
     .eq('id', currentUser.id)
 }
 
+async function syncEvalToSupabase(ev){
+  if(!currentUser) return
+  await supa.from('evaluations').insert({
+    user_id: currentUser.id,
+    fw: ev.fw,
+    overall_score: ev.overall_score,
+    sections: ev.sections,
+    deal_name: ev.dealName || null,
+    persona: ev.persona || null
+  })
+}
+
 function saveHist(ev){var h=getHist();h.unshift(ev);sl('rekol_hist',JSON.stringify(h.slice(0,100)))}
 function getHist(){try{return JSON.parse(gl('rekol_hist')||'[]')}catch{return[]}}
 function renderHistory(){
@@ -873,6 +1212,121 @@ function renderHistory(){
   c.innerHTML='<div class="hist-g">'+h.map(function(ev){var sc=ev.overall_score;var cls=sc>=70?'hi':sc>=41?'mid':'lo';var dt=new Date(ev.date).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});return '<div class="hist-c" onclick="reopenEval(\''+ev.id+'\')"><div class="hist-top"><div class="hist-deal">'+(ev.dealName||'Untitled deal')+'</div><div class="hist-sc '+cls+'">'+sc+'</div></div><div class="hist-meta"><span>'+ev.fw+'</span><span>'+dt+'</span></div></div>'}).join('')+'</div>';
 }
 function reopenEval(id){var ev=getHist().find(function(e){return e.id===id});if(!ev)return;curEval=ev;renderOut(ev);go('output')}
+
+async function loadTeamView(){
+  var code=document.getElementById('team-code-lookup').value.trim();
+  var results=document.getElementById('team-results');
+  if(!code){toast('Enter a team code.');return}
+  results.innerHTML='<p style="font-size:13px;color:var(--tx2)">Loading…</p>';
+  try{
+    var res=await fetch('/.netlify/functions/share?teamCode='+encodeURIComponent(code));
+    if(!res.ok)throw new Error('API '+res.status);
+    var rows=await res.json();
+    if(rows.error)throw new Error(rows.error);
+    renderTeamResults(rows,code);
+  }catch(e){
+    results.innerHTML='<p style="font-size:13px;color:var(--tx2)">Could not load this team code. Double check it and try again.</p>';
+    console.error(e);
+  }
+}
+
+function renderTeamResults(rows,code){
+  var results=document.getElementById('team-results');
+  if(!rows||!rows.length){
+    results.innerHTML='<div class="empty"><div class="empty-ico">&#x1F465;</div><div class="empty-h">No evaluations yet</div><p class="empty-p">Nothing has been shared under \''+code+'\' yet.</p></div>';
+    return;
+  }
+  var groups={};
+  rows.forEach(function(r){var nm=r.ae_name||'Unassigned';(groups[nm]=groups[nm]||[]).push(r)});
+  var html='';
+  Object.keys(groups).sort().forEach(function(nm){
+    var evs=groups[nm].slice().sort(function(a,b){return new Date(b.created_at)-new Date(a.created_at)});
+    html+='<div class="fw-breakdown-h">'+nm+'</div><div class="hist-g">'+evs.map(function(r){
+      var ev=r.eval_json||{};
+      var sc=ev.overall_score||0;
+      var cls=sc>=70?'hi':sc>=41?'mid':'lo';
+      var dt=new Date(r.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+      return '<a href="/e/'+r.id+'" class="hist-c"><div class="hist-top"><div class="hist-deal">'+(ev.dealName||'Untitled deal')+'</div><div class="hist-sc '+cls+'">'+sc+'</div></div><div class="hist-meta"><span>'+(ev.fw||'')+'</span><span>'+dt+'</span></div></a>';
+    }).join('')+'</div>';
+  });
+  results.innerHTML=html;
+}
+
+function buildChartSVG(points){
+  var w=680,h=200,padL=32,padR=10,padT=10,padB=28;
+  var innerW=w-padL-padR,innerH=h-padT-padB,n=points.length;
+  var xStep=n>1?innerW/(n-1):0;
+  function xAt(i){return padL+(n>1?i*xStep:innerW/2)}
+  function yAt(score){return padT+innerH-(score/100*innerH)}
+  var grid='';
+  [0,25,50,75,100].forEach(function(v){
+    var y=yAt(v);
+    grid+='<line x1="'+padL+'" y1="'+y+'" x2="'+(w-padR)+'" y2="'+y+'" stroke="var(--bd)" stroke-width="1"/>';
+    grid+='<text x="'+(padL-8)+'" y="'+(y+3)+'" text-anchor="end" font-size="9" fill="var(--tx3)" font-family="JetBrains Mono,monospace">'+v+'</text>';
+  });
+  var linePts=points.map(function(p,i){return xAt(i)+','+yAt(p.score)}).join(' ');
+  var circles=points.map(function(p,i){return '<circle cx="'+xAt(i)+'" cy="'+yAt(p.score)+'" r="3" fill="var(--ac)"/>'}).join('');
+  var labels=points.map(function(p,i){
+    if(n>6&&i%2!==0&&i!==n-1)return '';
+    return '<text x="'+xAt(i)+'" y="'+(h-6)+'" text-anchor="middle" font-size="9" fill="var(--tx3)" font-family="Sora,sans-serif">'+p.label+'</text>';
+  }).join('');
+  return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" style="display:block;overflow:visible">'+grid+'<polyline points="'+linePts+'" fill="none" stroke="var(--ac)" stroke-width="2"/>'+circles+labels+'</svg>';
+}
+
+function renderTrends(){
+  var hist=getHist();
+  var last10=hist.slice(0,10).slice().reverse();
+  var points=last10.map(function(ev){
+    return {score:ev.overall_score,label:new Date(ev.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})};
+  });
+  document.getElementById('trends-chart').innerHTML=points.length?buildChartSVG(points):'<p style="font-size:13px;color:var(--tx2)">Not enough data yet.</p>';
+
+  // Per-framework section breakdown across full history
+  var byFw={};
+  hist.forEach(function(ev){(byFw[ev.fw]=byFw[ev.fw]||[]).push(ev)});
+  var breakdownHtml='';
+  Object.keys(byFw).forEach(function(fwName){
+    var evals=byFw[fwName],agg={};
+    evals.forEach(function(ev){
+      (ev.sections||[]).forEach(function(sec){
+        agg[sec.name]=agg[sec.name]||{sum:0,count:0};
+        agg[sec.name].sum+=sec.score;agg[sec.name].count++;
+      });
+    });
+    var rows=Object.keys(agg).map(function(name){
+      var avg=Math.round(agg[name].sum/agg[name].count);
+      return '<div class="breakdown-row"><div class="breakdown-nm">'+name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+avg+'%"></div></div><div class="breakdown-sc">'+avg+'</div></div>';
+    }).join('');
+    if(rows)breakdownHtml+='<div class="fw-breakdown-h">'+fwName+' <span style="color:var(--tx3);font-size:12px;font-family:Sora,sans-serif">('+evals.length+' eval'+(evals.length>1?'s':'')+')</span></div>'+rows;
+  });
+  document.getElementById('trends-breakdown').innerHTML=breakdownHtml;
+
+  // Most improved / needs focus — aggregate section scores chronologically across all history
+  var byName={};
+  hist.slice().reverse().forEach(function(ev){
+    (ev.sections||[]).forEach(function(sec){
+      byName[sec.name]=byName[sec.name]||{scores:[],sum:0,count:0};
+      byName[sec.name].scores.push(sec.score);
+      byName[sec.name].sum+=sec.score;byName[sec.name].count++;
+    });
+  });
+  var mostImproved=null,maxIncrease=-Infinity,needsFocus=null,minAvg=Infinity;
+  Object.keys(byName).forEach(function(name){
+    var d=byName[name],avg=d.sum/d.count;
+    if(avg<minAvg){minAvg=avg;needsFocus={name:name,avg:avg}}
+    if(d.scores.length>=2){
+      var inc=d.scores[d.scores.length-1]-d.scores[0];
+      if(inc>maxIncrease){maxIncrease=inc;mostImproved={name:name,inc:inc}}
+    }
+  });
+  var callouts='<div class="card"><div class="callout-l">&#8593; Most improved</div>'+
+    (mostImproved?'<div class="callout-nm">'+mostImproved.name+'</div><div class="callout-d">'+(mostImproved.inc>=0?'+':'')+mostImproved.inc+' pts since your earliest evaluation covering this section.</div>':'<div class="callout-d">Not enough repeat data yet — run a few more evals on the same framework.</div>')+
+    '</div>'+
+    '<div class="card"><div class="callout-l">&#8595; Needs focus</div>'+
+    (needsFocus?'<div class="callout-nm">'+needsFocus.name+'</div><div class="callout-d">Averaging '+Math.round(needsFocus.avg)+'/100 across your evaluations.</div>':'<div class="callout-d">No section data yet.</div>')+
+    '</div>';
+  document.getElementById('trends-callouts').innerHTML=callouts;
+}
 
 function showOb(){obStep=0;renderOb();document.getElementById('ob-ov').classList.add('on')}
 function renderOb(){
@@ -894,6 +1348,7 @@ function sl(k,v){try{localStorage.setItem(k,v)}catch{}}
 
 document.addEventListener('DOMContentLoaded',function(){
   updateLimitBar()
+  checkSharedEvalRoute()
 
   supa.auth.onAuthStateChange(function(event, session){
     console.log('Auth event:', event, session ? session.user.email : 'no user')

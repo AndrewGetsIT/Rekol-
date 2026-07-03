@@ -30,7 +30,8 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' }
 
   try {
-    const { transcript, framework, customFields, dealName, persona, mode } = JSON.parse(event.body)
+    const { transcript, framework, customFields, dealName, persona, mode, dealStage } = JSON.parse(event.body)
+    const stageLine = dealStage ? 'Deal stage: ' + dealStage + ' — factor this into your coaching, e.g. "Given this is a ' + dealStage.toLowerCase() + '-stage deal, the AE should have been focused on..."' : ''
 
     const FW_FIELDS = {
       MEDDIC: ['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],
@@ -64,6 +65,7 @@ exports.handler = async function (event) {
         'Framework: ' + fwDesc,
         dealName ? 'Deal: ' + dealName : '',
         persona ? 'People on the call: ' + persona : '',
+        stageLine,
         '',
         'Transcript:',
         transcript,
@@ -112,6 +114,7 @@ exports.handler = async function (event) {
       'Framework: ' + fwDesc,
       dealName ? 'Deal: ' + dealName : '',
       persona ? 'People on the call: ' + persona + ' — tailor coaching tips to these specific personas.' : '',
+      stageLine,
       '',
       'Transcript:',
       transcript,

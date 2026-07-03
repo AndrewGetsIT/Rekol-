@@ -2,3 +2,11 @@
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
+
+[[redirects]]
+  from = "/e/*"
+  to = "/index.html"
+  status = 200
+
+[functions."digest"]
+  schedule = "0 8 * * 1"

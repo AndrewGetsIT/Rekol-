@@ -21,9 +21,9 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#090909;--s1:#111;--s2:#181818;--bd:#222;--bd2:#2d2d2d;
-      --tx:#efece7;--tx2:#888;--tx3:#484848;
-      --ac:#d0f23e;--ac-dim:rgba(208,242,62,0.08);
+      --bg:#0d0f12;--s1:#13161b;--s2:#1a1e24;--bd:#252a32;--bd2:#2f3640;
+      --tx:#e8eaed;--tx2:#8a9ab0;--tx3:#484848;
+      --ac:#00e5b0;--ac-dim:rgba(0,229,176,0.08);
       --red:#ff5252;--amber:#ffaa33;--green:#4ade80;
       --r:12px;--rs:8px;
     }
@@ -35,11 +35,13 @@
     nav.scrolled{border-color:var(--bd)}
     .logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;letter-spacing:.03em;color:var(--tx);cursor:pointer;user-select:none}
     .nav-r{display:flex;align-items:center;gap:8px}
+    .nav-user{font-size:11px;color:var(--tx3)}
+    @media(max-width:600px){.nav-user{display:none!important}}
     .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 17px;border-radius:var(--rs);font-family:'Sora',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .16s;border:none}
     .btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--bd)}
     .btn-ghost:hover{color:var(--tx);border-color:var(--bd2);background:var(--s1)}
     .btn-ac{background:var(--ac);color:#0a0a0a;font-weight:600}
-    .btn-ac:hover{background:#c8e935;transform:translateY(-1px);box-shadow:0 6px 20px rgba(208,242,62,.18)}
+    .btn-ac:hover{background:#00ccaa;transform:translateY(-1px);box-shadow:0 6px 20px rgba(0,229,176,.18)}
     .btn-s{background:var(--s2);color:var(--tx);border:1px solid var(--bd)}
     .btn-s:hover{background:#202020;border-color:var(--bd2)}
     .btn-xl{padding:15px 32px;font-size:15px;border-radius:10px;font-weight:600}
@@ -78,8 +80,8 @@
       .good-toggle{display:none}
       .good-panel{display:block!important}
       .hero{padding-top:32px}
-      .hero-sub{margin-bottom:24px}
-      .hero-h{font-size:clamp(40px,4vw,60px);white-space:nowrap}
+      .hero-sub{margin-bottom:20px;max-width:600px}
+      .hero-h{font-family:'Sora',sans-serif;font-weight:600;font-size:clamp(40px,4vw,60px);white-space:nowrap}
       .hero-br{display:none}
     }
     .field-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--tx2);margin-bottom:10px;display:flex;align-items:center;gap:7px}
@@ -267,8 +269,6 @@
     .btn-sso{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;padding:12px;border:none;border-radius:8px;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .16s}
     .btn-google-sso{background:#fff;color:#1a1a1a}
     .btn-google-sso:hover{opacity:.91}
-    .btn-ms-sso{background:#2f2f2f;color:#fff;border:1px solid var(--bd2)}
-    .btn-ms-sso:hover{background:#3a3a3a}
     .sso-divider{display:flex;align-items:center;gap:12px;margin:4px 0;color:var(--tx3);font-size:11px}
     .sso-divider::before,.sso-divider::after{content:'';flex:1;height:1px;background:var(--bd)}
     .email-in{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:8px;padding:11px 13px;color:var(--tx);font-family:'Sora',sans-serif;font-size:13px}
@@ -355,6 +355,7 @@
   <div class="nav-r">
     <button class="btn btn-ghost" id="trends-btn" onclick="go('trends')" style="display:none">Trends</button>
     <button class="btn btn-ghost" id="hist-btn" onclick="go('history')" style="display:none">History</button>
+    <span class="nav-user" id="nav-user" style="display:none"></span>
     <button class="btn btn-ghost" id="signin-nav-btn" onclick="openSignIn()">Sign in</button>
     <button class="btn btn-ghost" id="signout-btn" onclick="doSignOut()" style="display:none">Sign out</button>
   </div>
@@ -610,15 +611,9 @@
     <div class="modal-acts">
 
       <!-- Google -->
-      <button class="btn-sso btn-google-sso" onclick="doSignIn('google')">
+      <button class="btn-sso btn-google-sso" onclick="doSignIn()">
         <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
         Continue with Google
-      </button>
-
-      <!-- Microsoft -->
-      <button class="btn-sso btn-ms-sso" onclick="doSignIn('microsoft')">
-        <svg width="16" height="16" viewBox="0 0 21 21"><rect x="0" y="0" width="10" height="10" fill="#F25022"/><rect x="11" y="0" width="10" height="10" fill="#7FBA00"/><rect x="0" y="11" width="10" height="10" fill="#00A4EF"/><rect x="11" y="11" width="10" height="10" fill="#FFB900"/></svg>
-        Continue with Microsoft
       </button>
 
       <div class="sso-divider"><span>or</span></div>
@@ -1098,12 +1093,24 @@ function exportPDF(){toast('PDF export coming soon — use Copy to paste into yo
 
 function openSignIn(){document.getElementById('ov-signin').classList.add('on')}
 
-async function doSignIn(provider){
-  var p = provider === 'google' ? 'google' : 'azure'
+async function doSignIn(){
   var opts = { redirectTo: window.location.origin }
-  if(provider === 'microsoft') opts.scopes = 'email'
-  var res = await supa.auth.signInWithOAuth({ provider: p, options: opts })
-  if(res.error){ toast('Sign in failed — please try again.'); console.error(res.error) }
+  var res = await supa.auth.signInWithOAuth({ provider: 'google', options: opts })
+  if(res.error){
+    toast('Sign in failed — please try again.')
+    console.error(res.error)
+  }
+}
+
+function setNavUser(user){
+  var el=document.getElementById('nav-user');
+  if(user){
+    el.textContent = user.user_metadata?.full_name || user.email;
+    el.style.display='inline';
+  } else {
+    el.textContent='';
+    el.style.display='none';
+  }
 }
 
 async function doEmailSignIn(){
@@ -1120,6 +1127,7 @@ async function doSignOut(){
   sl('rekol_signed','0')
   document.getElementById('hist-btn').style.display='none'
   document.getElementById('signin-nav-btn').style.display='flex'
+  setNavUser(null)
   toast('Signed out.')
   go('home')
 }
@@ -1132,6 +1140,7 @@ async function onAuthStateChange(user){
     document.getElementById('hist-btn').style.display='flex'
     document.getElementById('signin-nav-btn').style.display='none'
     document.getElementById('signout-btn').style.display='flex'
+    setNavUser(user)
     // Load profile from Supabase
     await loadProfile()
     // Send welcome email on first ever sign in
@@ -1152,6 +1161,7 @@ async function onAuthStateChange(user){
     document.getElementById('hist-btn').style.display='none'
     document.getElementById('signin-nav-btn').style.display='flex'
     document.getElementById('signout-btn').style.display='none'
+    setNavUser(null)
   }
 }
 
@@ -1363,6 +1373,7 @@ document.addEventListener('DOMContentLoaded',function(){
       document.getElementById('hist-btn').style.display='flex'
       document.getElementById('signin-nav-btn').style.display='none'
       document.getElementById('signout-btn').style.display='flex'
+      setNavUser(session.user)
     } else if(event === 'SIGNED_OUT'){
       onAuthStateChange(null)
     }

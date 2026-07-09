@@ -26,7 +26,55 @@ function post(data) {
   })
 }
 
+// Strips markdown fences and any stray text outside the outermost {...} —
+// recovers most "malformed JSON" responses without needing a re-call.
+function cleanJson(text) {
+  let cleaned = text.replace(/```json|```/g, '').trim()
+  const firstBrace = cleaned.indexOf('{')
+  const lastBrace = cleaned.lastIndexOf('}')
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1)
+  }
+  return cleaned
+}
+
+// Calls the Anthropic API and, if the response isn't valid JSON, retries
+// once more — but only if we're still well within Netlify's 10s sync
+// function limit. A server-side retry re-runs a 5-8s Haiku call, so a
+// second retry (or a retry started late) risks a 504 instead of fixing
+// anything; in that case we fail fast so the client can retry with a
+// fresh 10s window instead.
+// Returns { raw } on success, or { error } otherwise.
+async function postAndParse(payload, label, startTime) {
+  let attempt = 0
+  while (true) {
+    attempt++
+    const response = await post(payload)
+
+    if (response.status !== 200) {
+      console.error(label + ' Anthropic error:', response.body)
+      return { error: 'AI service error' }
+    }
+
+    const data = JSON.parse(response.body)
+    const raw = cleanJson(data.content[0].text)
+
+    try {
+      JSON.parse(raw)
+      return { raw }
+    } catch (e) {
+      console.error(label + ' malformed JSON (attempt ' + attempt + '):', e.message)
+      const elapsed = Date.now() - startTime
+      if (attempt >= 2 || elapsed >= 4000) {
+        return { error: 'parse_failed' }
+      }
+      // one retry allowed — still within the time budget, loop again
+    }
+  }
+}
+
 exports.handler = async function (event) {
+  const startTime = Date.now()
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' }
 
   try {
@@ -77,23 +125,20 @@ exports.handler = async function (event) {
       ].filter(Boolean).join('\n')
 
       console.log('Quick mode — framework:', framework)
-      const response = await post({
+      const quickResult = await postAndParse({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 500,
         messages: [{ role: 'user', content: quickPrompt }],
-      })
+      }, 'Quick mode', startTime)
 
-      if (response.status !== 200) {
-        console.error('Anthropic quick error:', response.body)
-        return { statusCode: 502, body: JSON.stringify({ error: 'AI service error' }) }
+      if (quickResult.error) {
+        return { statusCode: 502, body: JSON.stringify({ error: quickResult.error }) }
       }
 
-      const data = JSON.parse(response.body)
-      const raw = data.content[0].text.replace(/```json|```/g, '').trim()
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: raw,
+        body: quickResult.raw,
       }
     }
 
@@ -126,24 +171,20 @@ exports.handler = async function (event) {
     ].filter(Boolean).join('\n')
 
     console.log('Full mode — framework:', framework, 'transcript length:', transcript.length)
-    const response = await post({
+    const fullResult = await postAndParse({
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 8000,
       messages: [{ role: 'user', content: fullPrompt }],
-    })
+    }, 'Full mode', startTime)
 
-    console.log('Response status:', response.status)
-    if (response.status !== 200) {
-      console.error('Anthropic full error:', response.body)
-      return { statusCode: 502, body: JSON.stringify({ error: 'AI service error' }) }
+    if (fullResult.error) {
+      return { statusCode: 502, body: JSON.stringify({ error: fullResult.error }) }
     }
 
-    const data = JSON.parse(response.body)
-    const raw = data.content[0].text.replace(/```json|```/g, '').trim()
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: raw,
+      body: fullResult.raw,
     }
 
   } catch (err) {

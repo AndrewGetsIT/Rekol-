@@ -828,14 +828,17 @@ async function runEval(){
   }
   go('loading');animSteps();
   try{
-    // STEP 1 — quick call: score + summary (shows output in 2-4 seconds)
-    var quick=await callAPI(transcript,fw,customFields,dealName,persona,'quick',dealStage);
+    // Fire both calls in parallel — quick resolves first for the score,
+    // full keeps running in the background for sections/next steps
+    var quickPromise=callAPI(transcript,fw,customFields,dealName,persona,'quick',dealStage);
+    var fullPromise=callAPI(transcript,fw,customFields,dealName,persona,'full',dealStage);
+
+    var quick=await quickPromise;
     curEval=Object.assign({},quick,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid(),sections:[],next_steps:[]});
     renderOut(curEval);go('output');
 
-    // STEP 2 — full call: sections + next steps (fills in progressively)
     showSectionSkeletons(fw==='Custom'?customFields.map(function(f){return typeof f==='object'?f.name:f}):getFwFields());
-    var full=await callAPI(transcript,fw,customFields,dealName,persona,'full',dealStage);
+    var full=await fullPromise;
     curEval.sections=full.sections||[];
     curEval.next_steps=full.next_steps||[];
     renderSections(curEval);
@@ -909,7 +912,12 @@ function animSteps(){
 }
 
 async function callAPI(transcript,framework,customFields,dealName,persona,mode,dealStage){
-  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full',dealStage:dealStage})});
+  var payload=JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full',dealStage:dealStage});
+  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
+  if(res.status===502||res.status===504){
+    // Server hit its time budget (or Netlify's hard limit) — retry once with a fresh 10s window
+    res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
+  }
   if(!res.ok)throw new Error('API '+res.status);
   var data=await res.json();
   if(data.error)throw new Error(data.error);

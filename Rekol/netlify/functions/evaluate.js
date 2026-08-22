@@ -78,7 +78,7 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' }
 
   try {
-    const { transcript, framework, customFields, dealName, persona, mode, dealStage } = JSON.parse(event.body)
+    let { transcript, framework, customFields, dealName, persona, mode, dealStage } = JSON.parse(event.body)
     const stageLine = dealStage ? 'Deal stage: ' + dealStage + ' — factor this into your coaching, e.g. "Given this is a ' + dealStage.toLowerCase() + '-stage deal, the AE should have been focused on..."' : ''
 
     const FW_FIELDS = {
@@ -131,6 +131,10 @@ exports.handler = async function (event) {
         messages: [{ role: 'user', content: quickPrompt }],
       }, 'Quick mode', startTime)
 
+      // Discard the transcript now that the API call is done — it must not
+      // be held in memory any longer than the request needs it for.
+      transcript = null
+
       if (quickResult.error) {
         return { statusCode: 502, body: JSON.stringify({ error: quickResult.error }) }
       }
@@ -176,6 +180,10 @@ exports.handler = async function (event) {
       max_tokens: 8000,
       messages: [{ role: 'user', content: fullPrompt }],
     }, 'Full mode', startTime)
+
+    // Discard the transcript now that the API call is done — it must not
+    // be held in memory any longer than the request needs it for.
+    transcript = null
 
     if (fullResult.error) {
       return { statusCode: 502, body: JSON.stringify({ error: fullResult.error }) }

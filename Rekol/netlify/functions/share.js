@@ -34,6 +34,11 @@ exports.handler = async function (event) {
         return { statusCode: 400, body: JSON.stringify({ error: 'Missing evalJson' }) }
       }
 
+      // Defence in depth: the client never attaches the raw transcript to a
+      // shared eval, but strip it here too so this guarantee doesn't rely
+      // solely on client-side discipline.
+      delete evalJson.transcript
+
       const insertRes = await supabaseRequest(
         'POST',
         '/rest/v1/shared_evals',

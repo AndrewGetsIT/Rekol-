@@ -249,6 +249,13 @@
     .breakdown-bar-fill{height:100%;background:var(--ac);border-radius:3px}
     .breakdown-sc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx2);width:34px;text-align:right;flex-shrink:0}
 
+    /* MANAGER DASHBOARD */
+    .mgr-email-ta{min-height:70px}
+    .mgr-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 9px;border-radius:100px;flex-shrink:0}
+    .mgr-badge-invited{color:var(--amber);border:1px solid rgba(255,170,51,.3);background:rgba(255,170,51,.08)}
+    .mgr-badge-active{color:var(--green);border:1px solid rgba(74,222,128,.3);background:rgba(74,222,128,.08)}
+    .mgr-stat-num{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500}
+
     /* PRACTICE THIS */
     .practice-tabs{display:flex;gap:6px;margin-bottom:14px}
     .practice-panel{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-bottom:20px}
@@ -357,6 +364,7 @@
   <div class="nav-r">
     <button class="btn btn-ghost" id="trends-btn" onclick="go('trends')" style="display:none">Trends</button>
     <button class="btn btn-ghost" id="hist-btn" onclick="go('history')" style="display:none">History</button>
+    <button class="btn btn-ghost" id="manager-nav-btn" onclick="go('manager')" style="display:none">Manager</button>
     <span class="nav-user" id="nav-user" style="display:none"></span>
     <button class="btn btn-ghost" id="signin-nav-btn" onclick="openSignIn()">Sign in</button>
     <button class="btn btn-ghost" id="signout-btn" onclick="doSignOut()" style="display:none">Sign out</button>
@@ -514,7 +522,7 @@
 
   <footer>
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -563,7 +571,7 @@
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -578,7 +586,7 @@
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -591,7 +599,7 @@
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -605,6 +613,58 @@
       <button class="btn btn-ac" style="white-space:nowrap" onclick="loadTeamView()">View team</button>
     </div>
     <div id="team-results"></div>
+  </div>
+  <footer style="margin-top:auto">
+    <span class="logo" onclick="go('home')">Rekol</span>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+  </footer>
+</div>
+
+<!-- MANAGER DASHBOARD -->
+<div id="v-manager" class="view">
+  <div style="max-width:900px;margin:0 auto;padding:100px 20px 60px;flex:1;width:100%">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500;margin-bottom:6px">Manager dashboard</div>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:24px" id="mgr-subtitle">See how your team is scoring, section by section.</p>
+
+    <div id="mgr-loading"><p style="font-size:13px;color:var(--tx2)">Loading…</p></div>
+
+    <div id="mgr-create" style="display:none">
+      <div class="field-mb">
+        <div class="field-label">Team name</div>
+        <input class="txt-in" id="mgr-new-team-name" placeholder="e.g. Acme Sales Team" type="text">
+      </div>
+      <div class="field-mb">
+        <div class="field-label">Invite AEs by email <span style="color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0">(comma or newline separated)</span></div>
+        <textarea class="ta mgr-email-ta" id="mgr-new-team-emails" placeholder="jane@acme.com, mike@acme.com"></textarea>
+      </div>
+      <div class="run-row"><button class="btn btn-ac btn-lg" onclick="createTeamAndInvite()">Create team →</button></div>
+    </div>
+
+    <div id="mgr-body" style="display:none">
+      <div class="stage-pills" id="mgr-team-tabs" style="margin-bottom:20px"></div>
+
+      <div class="field-mb">
+        <div class="field-label">Invite more AEs <span style="color:var(--tx3);font-weight:400;text-transform:none;letter-spacing:0">(comma or newline separated)</span></div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <textarea class="ta mgr-email-ta" id="mgr-invite-emails" placeholder="newperson@acme.com" style="flex:1"></textarea>
+          <button class="btn btn-s" onclick="inviteMoreAEs()">Invite</button>
+        </div>
+      </div>
+
+      <div class="field-label">Members</div>
+      <div id="mgr-members-list" style="margin-bottom:28px"></div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:28px 0 12px;flex-wrap:wrap;gap:10px">
+        <div class="field-label" style="margin-bottom:0">Dashboard</div>
+        <div class="stage-pills" id="mgr-range-tabs">
+          <button class="stage-pill" onclick="setRangeDays(7,this)">7d</button>
+          <button class="stage-pill on" onclick="setRangeDays(30,this)">30d</button>
+          <button class="stage-pill" onclick="setRangeDays(90,this)">90d</button>
+        </div>
+      </div>
+
+      <div id="mgr-dashboard-content"></div>
+    </div>
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
@@ -710,6 +770,7 @@ var isPro=gl('rekol_pro')==='1';
 var digestEnabled=gl('rekol_digest')==='1';
 var FREE_LIMIT=10;
 var currentUser=null;
+var myTeams=[],currentTeamId=null,teamDashboardData=null,teamRangeDays=30;
 var FW_FIELDS={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
 var FW_DESC={MEDDIC:'Metrics (quantifiable ROI/impact), Economic Buyer (ultimate decision maker identified and engaged), Decision Criteria (evaluation criteria mapped), Decision Process (buying steps and timeline understood), Identify Pain (critical business pain uncovered), Champion (internal advocate identified)',BANT:'Budget (confirmed budget exists), Authority (speaking with or have access to decision maker), Need (genuine business need established), Timeline (purchase timeline agreed or realistic)',SPIN:'Situation (context and background gathered), Problem (core problems identified), Implication (downstream consequences explored), Need-Payoff (value of solving the problem articulated)'};
 var OB=[{h:'Pick your framework',p:"Select MEDDIC, BANT, SPIN, or build a custom one. Hover the ? next to each name to see exactly what it covers."},{h:'Paste your transcript',p:"Copy from Gong, Chorus, Otter.ai, or anywhere. The word count shows when you've got enough for a strong evaluation."},{h:'Review, edit and share',p:"Every section scores red, amber or green. Edit the output, copy to Salesforce, or share a link with your manager in one click."}];
@@ -723,6 +784,7 @@ function go(v){
   document.getElementById('signin-nav-btn').style.display=signedIn?'none':'flex';
   if(v==='history')renderHistory();
   if(v==='trends')renderTrends();
+  if(v==='manager')renderManagerView();
 }
 window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>20)});
 
@@ -1142,9 +1204,11 @@ async function doEmailSignIn(){
 async function doSignOut(){
   await supa.auth.signOut()
   signedIn=false; currentUser=null;
+  myTeams=[];currentTeamId=null;teamDashboardData=null;
   sl('rekol_signed','0')
   document.getElementById('hist-btn').style.display='none'
   document.getElementById('signin-nav-btn').style.display='flex'
+  document.getElementById('manager-nav-btn').style.display='none'
   setNavUser(null)
   toast('Signed out.')
   go('home')
@@ -1161,6 +1225,9 @@ async function onAuthStateChange(user){
     setNavUser(user)
     // Load profile from Supabase
     await loadProfile()
+    // Manager status + pending team invites — neither should block the UI
+    checkManagerStatus()
+    claimTeamMemberships()
     // Send welcome email on first ever sign in
     if(!gl('rekol_welcomed')){
       sl('rekol_welcomed','1')
@@ -1176,9 +1243,11 @@ async function onAuthStateChange(user){
     if(!gl('rekol_ob_done')) setTimeout(showOb, 700)
   } else {
     signedIn=false; currentUser=null;
+    myTeams=[];currentTeamId=null;teamDashboardData=null;
     document.getElementById('hist-btn').style.display='none'
     document.getElementById('signin-nav-btn').style.display='flex'
     document.getElementById('signout-btn').style.display='none'
+    document.getElementById('manager-nav-btn').style.display='none'
     setNavUser(null)
   }
 }
@@ -1208,6 +1277,241 @@ async function enableDigest(){
   document.getElementById('digest-nudge').style.display='none'
   await supa.from('profiles').update({ digest_enabled: true }).eq('id', currentUser.id)
   toast('Weekly email summaries turned on.')
+}
+
+/* ===== MANAGER DASHBOARD ===== */
+
+async function getAuthToken(){
+  var res = await supa.auth.getSession()
+  return (res.data && res.data.session) ? res.data.session.access_token : null
+}
+
+// Owning a team is what makes someone a manager — no role column, just
+// "do they own at least one team". Cheap query, safe to call after every
+// sign-in.
+async function checkManagerStatus(){
+  if(!currentUser) return
+  var res = await supa.from('teams').select('id,name').eq('owner_id', currentUser.id).order('created_at')
+  myTeams = res.data || []
+  document.getElementById('manager-nav-btn').style.display = myTeams.length ? 'flex' : 'none'
+}
+
+// Claims any pending team invites addressed to this email. Silent unless
+// something was actually claimed — an AE's experience is otherwise
+// completely unchanged.
+async function claimTeamMemberships(){
+  if(!currentUser) return
+  try{
+    var token = await getAuthToken()
+    if(!token) return
+    var res = await fetch('/.netlify/functions/team-claim', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body:'{}' })
+    var data = await res.json()
+    if(data.claimed > 0 && data.teamNames && data.teamNames.length){
+      toast("You've joined "+data.teamNames.join(', ')+'.')
+    }
+  }catch(e){ console.error('Team claim check failed (non-critical):', e) }
+}
+
+function openCreateTeam(){
+  if(!signedIn){ toast('Sign in to create a team.'); openSignIn(); return }
+  go('manager')
+}
+
+function scoreColor(score){
+  if(score>=71) return 'var(--green)'
+  if(score>=41) return 'var(--amber)'
+  return 'var(--red)'
+}
+
+async function renderManagerView(){
+  if(!signedIn){ toast('Sign in to access the manager dashboard.'); go('home'); return }
+  document.getElementById('mgr-create').style.display='none'
+  document.getElementById('mgr-body').style.display='none'
+  document.getElementById('mgr-loading').style.display='block'
+
+  var res = await supa.from('teams').select('id,name').eq('owner_id', currentUser.id).order('created_at')
+  myTeams = res.data || []
+  document.getElementById('manager-nav-btn').style.display = myTeams.length ? 'flex' : 'none'
+  document.getElementById('mgr-loading').style.display='none'
+
+  if(!myTeams.length){
+    document.getElementById('mgr-subtitle').textContent = 'Create a team and invite your AEs to get started.'
+    document.getElementById('mgr-create').style.display='block'
+    return
+  }
+
+  document.getElementById('mgr-subtitle').textContent = 'See how your team is scoring, section by section.'
+  if(!currentTeamId || !myTeams.some(function(t){return t.id===currentTeamId})){
+    currentTeamId = myTeams[0].id
+  }
+  renderTeamTabs()
+  document.getElementById('mgr-body').style.display='block'
+  await loadMembersList()
+  await loadTeamDashboard()
+}
+
+function renderTeamTabs(){
+  var el = document.getElementById('mgr-team-tabs')
+  if(myTeams.length < 2){ el.innerHTML=''; return }
+  el.innerHTML = myTeams.map(function(t){
+    return '<button class="stage-pill'+(t.id===currentTeamId?' on':'')+'" onclick="switchTeam(\''+t.id+'\')">'+t.name+'</button>'
+  }).join('')
+}
+
+function switchTeam(id){
+  currentTeamId = id
+  renderTeamTabs()
+  loadMembersList()
+  loadTeamDashboard()
+}
+
+async function createTeamAndInvite(){
+  var name = document.getElementById('mgr-new-team-name').value.trim()
+  var emailsRaw = document.getElementById('mgr-new-team-emails').value.trim()
+  if(!name){ toast('Enter a team name.'); return }
+  var emails = emailsRaw.split(/[,\n]/).map(function(e){return e.trim()}).filter(Boolean)
+  if(!emails.length){ toast('Add at least one AE email to invite.'); return }
+  var token = await getAuthToken()
+  if(!token){ toast('Please sign in again.'); return }
+  try{
+    var res = await fetch('/.netlify/functions/team-invite', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({ teamName: name, emails: emails })
+    })
+    var data = await res.json()
+    if(!res.ok || data.error) throw new Error(data.error || 'API '+res.status)
+    toast('Team created — '+data.invited+' invite'+(data.invited===1?'':'s')+' sent.')
+    currentTeamId = data.team.id
+    await renderManagerView()
+  }catch(e){
+    toast('Could not create team — please try again.')
+    console.error(e)
+  }
+}
+
+async function inviteMoreAEs(){
+  var emailsRaw = document.getElementById('mgr-invite-emails').value.trim()
+  if(!emailsRaw){ toast('Add at least one email.'); return }
+  var emails = emailsRaw.split(/[,\n]/).map(function(e){return e.trim()}).filter(Boolean)
+  var token = await getAuthToken()
+  if(!token){ toast('Please sign in again.'); return }
+  try{
+    var res = await fetch('/.netlify/functions/team-invite', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({ teamId: currentTeamId, emails: emails })
+    })
+    var data = await res.json()
+    if(!res.ok || data.error) throw new Error(data.error || 'API '+res.status)
+    document.getElementById('mgr-invite-emails').value=''
+    toast(data.invited+' invite'+(data.invited===1?'':'s')+' sent.')
+    renderMembersList(data.members)
+  }catch(e){
+    toast('Could not send invites — please try again.')
+    console.error(e)
+  }
+}
+
+async function loadMembersList(){
+  var res = await supa.from('team_members').select('id,invited_email,status,joined_at').eq('team_id', currentTeamId).order('created_at')
+  renderMembersList(res.data || [])
+}
+
+function renderMembersList(members){
+  var el = document.getElementById('mgr-members-list')
+  if(!members || !members.length){
+    el.innerHTML = '<p style="font-size:12px;color:var(--tx3)">No one invited yet.</p>'
+    return
+  }
+  el.innerHTML = members.map(function(m){
+    var isActive = m.status === 'active'
+    return '<div class="breakdown-row"><div class="breakdown-nm" style="width:auto;flex:1">'+m.invited_email+'</div><span class="mgr-badge '+(isActive?'mgr-badge-active':'mgr-badge-invited')+'">'+(isActive?'ACTIVE':'INVITED')+'</span></div>'
+  }).join('')
+}
+
+function setRangeDays(days, btn){
+  teamRangeDays = days
+  document.querySelectorAll('#mgr-range-tabs .stage-pill').forEach(function(t){t.classList.remove('on')})
+  btn.classList.add('on')
+  loadTeamDashboard()
+}
+
+async function loadTeamDashboard(){
+  var content = document.getElementById('mgr-dashboard-content')
+  content.innerHTML = '<p style="font-size:13px;color:var(--tx2)">Loading…</p>'
+  var token = await getAuthToken()
+  if(!token){ toast('Please sign in again.'); return }
+  try{
+    var res = await fetch('/.netlify/functions/team-dashboard', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({ teamId: currentTeamId, rangeDays: teamRangeDays })
+    })
+    var data = await res.json()
+    if(!res.ok || data.error) throw new Error(data.error || 'API '+res.status)
+    teamDashboardData = data
+    renderManagerDashboard(data)
+  }catch(e){
+    content.innerHTML = '<p style="font-size:13px;color:var(--tx2)">Could not load dashboard — please try again.</p>'
+    console.error(e)
+  }
+}
+
+function renderManagerDashboard(data){
+  var content = document.getElementById('mgr-dashboard-content')
+
+  if(!data.teamStats.evalCount){
+    content.innerHTML = '<div class="empty"><div class="empty-ico">&#x1F4CA;</div><div class="empty-h">No evals from your team yet</div><p class="empty-p">Invited AEs appear here once they sign in and run evaluations.</p></div>'
+    return
+  }
+
+  var html = ''
+
+  html += '<div class="callout-row" style="grid-template-columns:1fr 1fr 1fr">'
+    + '<div class="card"><div class="card-l">Team avg score</div><div class="mgr-stat-num" style="color:'+scoreColor(data.teamStats.avgScore)+'">'+data.teamStats.avgScore+'</div></div>'
+    + '<div class="card"><div class="card-l">Evaluations</div><div class="mgr-stat-num">'+data.teamStats.evalCount+'</div></div>'
+    + '<div class="card"><div class="card-l">Active AEs</div><div class="mgr-stat-num">'+data.memberCount+'</div></div>'
+    + '</div>'
+
+  if(data.coachingBrief){
+    html += '<div class="card" style="margin-bottom:20px"><div class="card-l">Focus for your next team meeting</div><div class="card-t">'+data.coachingBrief+'</div></div>'
+  }
+
+  html += '<div class="fw-breakdown-h">Framework sections</div>'
+  data.sectionAggregates.forEach(function(s){
+    html += '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'
+    if(s.redCount > 0){
+      html += '<div style="font-size:11px;color:var(--tx3);margin:-6px 0 8px">red in '+s.redCount+' of '+s.totalCount+' evaluations</div>'
+    }
+  })
+
+  html += '<div class="fw-breakdown-h">By AE</div><div class="hist-g">'
+    + data.aeSummaries.map(function(a){
+        var cls = a.avgScore>=70?'hi':a.avgScore>=41?'mid':'lo'
+        return '<div class="hist-c" onclick="showAeDrilldown(\''+a.userId+'\')"><div class="hist-top"><div class="hist-deal">'+a.name+'</div><div class="hist-sc '+cls+'">'+a.avgScore+'</div></div><div class="hist-meta"><span>'+a.evalCount+' eval'+(a.evalCount===1?'':'s')+'</span><span>Weakest: '+(a.weakestSection?a.weakestSection.name:'—')+'</span></div></div>'
+      }).join('')
+    + '</div>'
+
+  html += '<div id="mgr-ae-drilldown" style="display:none;margin-top:20px"></div>'
+
+  content.innerHTML = html
+}
+
+function showAeDrilldown(userId){
+  if(!teamDashboardData) return
+  var ae = teamDashboardData.aeSummaries.find(function(a){return a.userId===userId})
+  if(!ae) return
+  var points = teamDashboardData.teamStats.trend.filter(function(t){return t.userId===userId}).map(function(t){
+    return { score:t.score, label:new Date(t.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) }
+  })
+  var html = '<div class="fw-breakdown-h">'+ae.name+'</div>'
+  html += '<div class="chart-card">'+(points.length?buildChartSVG(points):'<p style="font-size:13px;color:var(--tx2)">Not enough data yet.</p>')+'</div>'
+  html += ae.sectionAverages.map(function(s){
+    return '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'
+  }).join('')
+  html += '<div style="margin-top:10px"><button class="btn-skip" onclick="document.getElementById(\'mgr-ae-drilldown\').style.display=\'none\'">Close</button></div>'
+  var el = document.getElementById('mgr-ae-drilldown')
+  el.innerHTML = html
+  el.style.display = 'block'
+  el.scrollIntoView({behavior:'smooth', block:'start'})
 }
 
 async function syncEvalCount(){

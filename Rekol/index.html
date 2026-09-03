@@ -21,11 +21,12 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#0d0f12;--s1:#13161b;--s2:#1a1e24;--bd:#252a32;--bd2:#2f3640;
+      --bg:#0d0f12;--s1:#13161b;--s2:#1a1e24;--s3:#20242c;--bd:#252a32;--bd2:#2f3640;
       --tx:#e8eaed;--tx2:#8a9ab0;--tx3:#484848;
-      --ac:#00e5b0;--ac-dim:rgba(0,229,176,0.08);
+      --ac:#00e5b0;--ac-dim:rgba(0,229,176,0.08);--ac-line:rgba(0,229,176,.35);
       --red:#ff5252;--amber:#ffaa33;--green:#4ade80;
-      --r:12px;--rs:8px;
+      --red-dim:rgba(255,82,82,.14);--amber-dim:rgba(255,170,51,.14);--green-dim:rgba(74,222,128,.14);
+      --r:12px;--rs:8px;--mono:'JetBrains Mono',monospace;
     }
     html{scroll-behavior:smooth}
     body{background:var(--bg);color:var(--tx);font-family:'Sora',sans-serif;font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
@@ -140,13 +141,6 @@
     .fw-c:hover{background:var(--s2)}
     .fw-nm{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500;color:var(--ac);margin-bottom:8px}
     .fw-d{font-size:12px;color:var(--tx2);line-height:1.65}
-    .testi-g{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .testi{background:var(--s1);padding:24px;border-radius:var(--r);border:1px solid var(--bd)}
-    .testi-q{font-size:13px;color:var(--tx2);line-height:1.75;margin-bottom:18px;font-style:italic}
-    .testi-a{display:flex;align-items:center;gap:10px}
-    .testi-av{width:32px;height:32px;border-radius:50%;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--tx2);flex-shrink:0}
-    .testi-n{font-size:12px;font-weight:600}
-    .testi-r{font-size:11px;color:var(--tx3)}
     footer{border-top:1px solid var(--bd);padding:28px 36px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
     .f-links{display:flex;gap:20px;flex-wrap:wrap}
     .f-links a{font-size:12px;color:var(--tx3);text-decoration:none;transition:color .16s}
@@ -256,6 +250,78 @@
     .mgr-badge-active{color:var(--green);border:1px solid rgba(74,222,128,.3);background:rgba(74,222,128,.08)}
     .mgr-stat-num{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500}
 
+    /* TEAM DASHBOARD (shared-eval / team-code based demo view) */
+    .td-section-l{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--tx3);margin:34px 0 13px;font-weight:600}
+    .td-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .td-kpi{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:18px 20px}
+    .td-kpi-l{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--tx2);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+    .td-kpi-v{font-family:var(--mono);font-size:30px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+    .td-kpi-sub{font-size:11px;color:var(--tx3);margin-top:9px}
+    .td-kpi.warn{border-color:rgba(255,82,82,.3)}
+    .td-kpi.warn .td-kpi-v{color:var(--red)}
+    .td-brief{position:relative;background:linear-gradient(180deg,var(--ac-dim),transparent 70%),var(--s1);border:1px solid var(--ac-line);border-radius:var(--r);padding:24px 26px;overflow:hidden}
+    .td-brief::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--ac)}
+    .td-brief-tag{display:inline-flex;align-items:center;gap:7px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ac);font-weight:600;margin-bottom:12px}
+    .td-brief-tag::before{content:"✦";font-size:12px}
+    .td-brief-h{font-family:'Cormorant Garamond',serif;font-size:25px;font-weight:600;margin-bottom:10px;text-wrap:balance}
+    .td-brief-h em{font-style:normal;color:var(--ac)}
+    .td-brief-p{font-size:14px;color:var(--tx2);max-width:70ch;line-height:1.7}
+    .td-brief-p b{color:var(--tx);font-weight:500}
+    .td-brief-rec{margin-top:16px;padding-top:16px;border-top:1px solid var(--bd);font-size:13px;color:var(--tx2)}
+    .td-brief-rec b{color:var(--ac);font-weight:600}
+    .td-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+    .td-card-hd{padding:16px 20px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    .td-card-t{font-size:14px;font-weight:600}
+    .td-card-note{font-size:11px;color:var(--tx3)}
+    .td-legend{display:flex;gap:14px;font-size:11px;color:var(--tx2)}
+    .td-legend span{display:inline-flex;align-items:center;gap:5px}
+    .td-dot{width:9px;height:9px;border-radius:3px;display:inline-block}
+    .td-dot.g{background:var(--green)}.td-dot.a{background:var(--amber)}.td-dot.r{background:var(--red)}
+    .td-hm-scroll{overflow-x:auto}
+    table.td-hm{border-collapse:collapse;width:100%;min-width:640px}
+    table.td-hm th,table.td-hm td{text-align:center;padding:0}
+    table.td-hm thead th{font-size:10.5px;font-weight:500;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em;padding:14px 6px 12px;border-bottom:1px solid var(--bd);vertical-align:bottom;line-height:1.3}
+    table.td-hm thead th.ae-col{text-align:left;padding-left:20px;width:170px}
+    .td-hm-cell{margin:3px;height:38px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;cursor:default;transition:transform .12s;position:relative}
+    .td-hm-cell:hover{transform:scale(1.08);z-index:2;outline:1.5px solid var(--bd2)}
+    .td-hm-cell.g{background:var(--green-dim);color:var(--green)}
+    .td-hm-cell.a{background:var(--amber-dim);color:var(--amber)}
+    .td-hm-cell.r{background:var(--red-dim);color:var(--red)}
+    td.td-ae-cell{text-align:left;padding:0 8px 0 20px;white-space:nowrap}
+    .td-ae-name{font-size:13px;font-weight:500}
+    tr.td-avg-row td{border-top:1px solid var(--bd2);padding-top:2px}
+    tr.td-avg-row .td-ae-cell{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);font-weight:600}
+    .td-avg-v{height:34px;margin:3px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:13px;font-weight:600;border:1px dashed var(--bd2)}
+    .td-avg-v.g{color:var(--green)}.td-avg-v.a{color:var(--amber)}.td-avg-v.r{color:var(--red)}
+    .td-two{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+    .td-ae-tbl{width:100%;border-collapse:collapse}
+    .td-ae-tbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--tx3);font-weight:600;padding:12px 14px;border-bottom:1px solid var(--bd)}
+    .td-ae-tbl th.r,.td-ae-tbl td.r{text-align:right}
+    .td-ae-tbl td{padding:13px 14px;border-bottom:1px solid var(--bd);font-size:13px}
+    .td-ae-tbl tr:last-child td{border-bottom:none}
+    .td-ae-tbl tbody tr{transition:background .12s;cursor:pointer}
+    .td-ae-tbl tbody tr:hover{background:var(--s2)}
+    .td-score-chip{display:inline-flex;align-items:center;justify-content:center;min-width:34px;font-family:var(--mono);font-size:12px;font-weight:600;padding:2px 8px;border-radius:6px}
+    .td-score-chip.g{background:var(--green-dim);color:var(--green)}
+    .td-score-chip.a{background:var(--amber-dim);color:var(--amber)}
+    .td-score-chip.r{background:var(--red-dim);color:var(--red)}
+    .td-weak{font-size:12px;color:var(--tx2)}
+    .td-weak b{color:var(--amber);font-weight:500}
+    .td-trend-svg{vertical-align:middle}
+    .td-risk-n{font-family:var(--mono);font-weight:600}
+    .td-risk-n.hot{color:var(--red)}
+    .td-deal-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--bd)}
+    .td-deal-row:last-child{border-bottom:none}
+    .td-deal-main{flex:1;min-width:0}
+    .td-deal-name{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .td-deal-meta{font-size:11px;color:var(--tx3);margin-top:2px}
+    .td-deal-gap{font-size:11px;color:var(--tx2);text-align:right;max-width:150px;flex-shrink:0}
+    .td-deal-gap span{color:var(--red)}
+    @media(max-width:820px){
+      .td-kpis{grid-template-columns:repeat(2,1fr)}
+      .td-two{grid-template-columns:1fr}
+    }
+
     /* PRACTICE THIS */
     .practice-tabs{display:flex;gap:6px;margin-bottom:14px}
     .practice-panel{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:20px;margin-bottom:20px}
@@ -344,7 +410,6 @@
       .step:first-child{border-radius:var(--r) var(--r) 0 0}
       .step:last-child{border-radius:0 0 var(--r) var(--r)}
       .fw-grid{grid-template-columns:1fr 1fr}
-      .testi-g{grid-template-columns:1fr}
       footer{flex-direction:column;padding:20px 16px}
       .lp-wrap{padding:0 16px 60px}
       .out-wrap{padding:32px 16px}
@@ -365,6 +430,7 @@
     <button class="btn btn-ghost" id="trends-btn" onclick="go('trends')" style="display:none">Trends</button>
     <button class="btn btn-ghost" id="hist-btn" onclick="go('history')" style="display:none">History</button>
     <button class="btn btn-ghost" id="manager-nav-btn" onclick="go('manager')" style="display:none">Manager</button>
+    <button class="btn btn-ghost" id="team-dashboard-nav-btn" onclick="go('manager-demo')" style="display:none">Team dashboard</button>
     <span class="nav-user" id="nav-user" style="display:none"></span>
     <button class="btn btn-ghost" id="signin-nav-btn" onclick="openSignIn()">Sign in</button>
     <button class="btn btn-ghost" id="signout-btn" onclick="doSignOut()" style="display:none">Sign out</button>
@@ -375,7 +441,7 @@
 <div id="v-home" class="view on">
   <div class="hero">
     <div class="hero-glow"></div>
-    <div class="live-badge"><span class="live-dot"></span><span id="live-c">124 evaluations run this week</span></div>
+    <div class="live-badge" id="live-badge" style="display:none"><span class="live-dot"></span><span id="live-c"></span></div>
     <h1 class="hero-h">Be present.<br class="hero-br"> Let <span style="color:var(--ac)">Rekol</span><br class="hero-br"> handle the rest.</h1>
     <p class="hero-sub">Paste your transcript below. Get an instant evaluation against MEDDIC, BANT, SPIN — or your own framework. No signup needed.</p>
   </div>
@@ -509,20 +575,11 @@
         <div class="fw-c"><div class="fw-nm">Custom</div><p class="fw-d">Your fields. Your criteria. Saved to your account for every future call.</p></div>
       </div>
     </div>
-    <div>
-      <div class="lp-label">WHAT A<span style="text-transform:none">Es</span> SAY</div>
-      <h2 class="lp-h">What AEs say.</h2>
-      <div class="testi-g">
-        <div class="testi"><p class="testi-q">"I used to spend 20 minutes writing up call notes after every meeting. Now I paste the transcript and I'm done in 30 seconds. The coaching tips alone are worth it."</p><div class="testi-a"><div class="testi-av">J</div><div><div class="testi-n">James R.</div><div class="testi-r">Senior AE · SaaS</div></div></div></div>
-        <div class="testi"><p class="testi-q">"The MEDDIC scoring opened my eyes. I thought I'd qualified the deal — turns out I'd never surfaced the economic buyer. Saved me weeks chasing a deal that was never going to close."</p><div class="testi-a"><div class="testi-av">S</div><div><div class="testi-n">Sarah K.</div><div class="testi-r">Enterprise AE · Fintech</div></div></div></div>
-        <div class="testi"><p class="testi-q">"My manager asked for structured deal reviews. I share the Rekol link and the whole conversation is 10x more productive."</p><div class="testi-a"><div class="testi-av">M</div><div><div class="testi-n">Marcus T.</div><div class="testi-r">Mid-Market AE · HR Tech</div></div></div></div>
-      </div>
-    </div>
   </div>
 
   <footer>
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('manager-demo')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -571,7 +628,7 @@
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('manager-demo')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -586,7 +643,7 @@
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('manager-demo')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -599,7 +656,7 @@
   </div>
   <footer style="margin-top:auto">
     <span class="logo" onclick="go('home')">Rekol</span>
-    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('team')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="#" onclick="event.preventDefault();go('manager-demo')">Team view</a><a href="#" onclick="event.preventDefault();openCreateTeam()">Create a team</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
   </footer>
 </div>
 
@@ -664,6 +721,81 @@
       </div>
 
       <div id="mgr-dashboard-content"></div>
+    </div>
+  </div>
+  <footer style="margin-top:auto">
+    <span class="logo" onclick="go('home')">Rekol</span>
+    <div class="f-links"><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms</a><a href="/privacy.html#contact">Contact</a><a href="https://itua.io" target="_blank" rel="noopener">Built by Itua</a></div>
+  </footer>
+</div>
+
+<!-- TEAM DASHBOARD (demo — built on shared evals by team code) -->
+<div id="v-manager-demo" class="view">
+  <div style="max-width:1180px;margin:0 auto;padding:100px 20px 80px;flex:1;width:100%">
+    <div style="font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:500;margin-bottom:6px">Team performance</div>
+    <p style="font-size:13px;color:var(--tx2);margin-bottom:24px">Paste your team code to see how your AEs are qualifying deals — where they're strong, where deals are slipping, and what to coach next.</p>
+
+    <div style="display:flex;gap:8px;margin-bottom:28px;max-width:420px;flex-wrap:wrap">
+      <input class="txt-in" id="td-code-input" placeholder="e.g. ACME-SALES" type="text" onkeydown="if(event.key==='Enter')loadTeamDashboardDemo()">
+      <button class="btn btn-ac" style="white-space:nowrap" onclick="loadTeamDashboardDemo()">View team</button>
+    </div>
+
+    <div id="td-loading" style="display:none"><p style="font-size:13px;color:var(--tx2)">Loading…</p></div>
+    <div id="td-empty" style="display:none"></div>
+
+    <div id="td-body" style="display:none">
+      <div class="stage-pills" id="td-period-tabs" style="margin-bottom:20px">
+        <button class="stage-pill" onclick="setTdPeriod('7d',this)">7d</button>
+        <button class="stage-pill on" onclick="setTdPeriod('30d',this)">30d</button>
+        <button class="stage-pill" onclick="setTdPeriod('qtd',this)">QTD</button>
+      </div>
+
+      <div class="td-kpis" id="td-kpis"></div>
+
+      <div class="td-section-l">This week's coaching brief · auto-generated</div>
+      <div class="td-brief" id="td-brief"></div>
+
+      <div class="td-section-l" id="td-heatmap-label">Coverage by rep</div>
+      <div class="td-card">
+        <div class="td-card-hd">
+          <div>
+            <div class="td-card-t">Where each rep is strong &amp; weak</div>
+            <div class="td-card-note">Average section score across each rep's evaluations · 0–100</div>
+          </div>
+          <div class="td-legend">
+            <span><i class="td-dot g"></i>70+</span>
+            <span><i class="td-dot a"></i>41–69</span>
+            <span><i class="td-dot r"></i>≤40</span>
+          </div>
+        </div>
+        <div class="td-hm-scroll">
+          <table class="td-hm">
+            <thead><tr id="td-hm-head"></tr></thead>
+            <tbody id="td-hm-body"></tbody>
+            <tbody id="td-hm-avg"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="td-section-l">Rep breakdown &amp; deals needing attention</div>
+      <div class="td-two">
+        <div class="td-card">
+          <div class="td-card-hd"><div class="td-card-t">Account executives</div><div class="td-card-note">click a rep to jump to their deals</div></div>
+          <div style="overflow-x:auto">
+            <table class="td-ae-tbl">
+              <thead><tr><th>Rep</th><th class="r">Evals</th><th class="r">Avg</th><th>Trend</th><th>Weakest</th><th class="r">At risk</th></tr></thead>
+              <tbody id="td-ae-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="td-card">
+          <div class="td-card-hd"><div class="td-card-t">Deals at risk</div><div class="td-card-note">lowest-scoring evals</div></div>
+          <div id="td-deals-body"></div>
+        </div>
+      </div>
+
+      <div class="td-section-l">Team score trend</div>
+      <div class="chart-card"><div id="td-chart"></div></div>
     </div>
   </div>
   <footer style="margin-top:auto">
@@ -771,6 +903,7 @@ var digestEnabled=gl('rekol_digest')==='1';
 var FREE_LIMIT=10;
 var currentUser=null;
 var myTeams=[],currentTeamId=null,teamDashboardData=null,teamRangeDays=30;
+var tdRawRows=[],tdPeriod='30d',tdCode='';
 var FW_FIELDS={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
 var FW_DESC={MEDDIC:'Metrics (quantifiable ROI/impact), Economic Buyer (ultimate decision maker identified and engaged), Decision Criteria (evaluation criteria mapped), Decision Process (buying steps and timeline understood), Identify Pain (critical business pain uncovered), Champion (internal advocate identified)',BANT:'Budget (confirmed budget exists), Authority (speaking with or have access to decision maker), Need (genuine business need established), Timeline (purchase timeline agreed or realistic)',SPIN:'Situation (context and background gathered), Problem (core problems identified), Implication (downstream consequences explored), Need-Payoff (value of solving the problem articulated)'};
 var OB=[{h:'Pick your framework',p:"Select MEDDIC, BANT, SPIN, or build a custom one. Hover the ? next to each name to see exactly what it covers."},{h:'Paste your transcript',p:"Copy from Gong, Chorus, Otter.ai, or anywhere. The word count shows when you've got enough for a strong evaluation."},{h:'Review, edit and share',p:"Every section scores red, amber or green. Edit the output, copy to Salesforce, or share a link with your manager in one click."}];
@@ -781,6 +914,7 @@ function go(v){
   window.scrollTo(0,0);
   document.getElementById('hist-btn').style.display=signedIn?'flex':'none';
   document.getElementById('trends-btn').style.display=getHist().length>=2?'flex':'none';
+  document.getElementById('team-dashboard-nav-btn').style.display=signedIn?'flex':'none';
   document.getElementById('signin-nav-btn').style.display=signedIn?'none':'flex';
   if(v==='history')renderHistory();
   if(v==='trends')renderTrends();
@@ -1225,6 +1359,9 @@ async function onAuthStateChange(user){
     setNavUser(user)
     // Load profile from Supabase
     await loadProfile()
+    // Pull History/Trends from the account so a signed-in user sees their
+    // real coaching record on any device, not just this browser's localStorage
+    loadEvaluationsFromSupabase()
     // Manager status + pending team invites — neither should block the UI
     checkManagerStatus()
     claimTeamMemberships()
@@ -1248,6 +1385,7 @@ async function onAuthStateChange(user){
     document.getElementById('signin-nav-btn').style.display='flex'
     document.getElementById('signout-btn').style.display='none'
     document.getElementById('manager-nav-btn').style.display='none'
+    document.getElementById('team-dashboard-nav-btn').style.display='none'
     setNavUser(null)
   }
 }
@@ -1514,6 +1652,306 @@ function showAeDrilldown(userId){
   el.scrollIntoView({behavior:'smooth', block:'start'})
 }
 
+/* ===== TEAM DASHBOARD (demo — reads shared_evals by team code, no backend) ===== */
+
+function tdScoreClass(v){
+  if(v<=40) return 'r'
+  if(v<=69) return 'a'
+  return 'g'
+}
+
+function tdPeriodCutoff(){
+  var now = new Date()
+  if(tdPeriod==='7d') return new Date(now.getTime() - 7*24*60*60*1000)
+  if(tdPeriod==='qtd'){
+    var qMonth = Math.floor(now.getMonth()/3)*3
+    return new Date(now.getFullYear(), qMonth, 1)
+  }
+  return new Date(now.getTime() - 30*24*60*60*1000) // '30d'
+}
+
+async function loadTeamDashboardDemo(){
+  var code = document.getElementById('td-code-input').value.trim()
+  if(!code){ toast('Enter a team code.'); return }
+  tdCode = code
+  document.getElementById('td-body').style.display='none'
+  document.getElementById('td-empty').style.display='none'
+  document.getElementById('td-loading').style.display='block'
+  try{
+    var res = await fetch('/.netlify/functions/share?teamCode='+encodeURIComponent(code))
+    if(!res.ok) throw new Error('API '+res.status)
+    var rows = await res.json()
+    if(rows.error) throw new Error(rows.error)
+    document.getElementById('td-loading').style.display='none'
+    if(!rows || !rows.length){
+      document.getElementById('td-empty').innerHTML = '<div class="empty"><div class="empty-ico">&#x1F4CA;</div><div class="empty-h">Nothing shared yet</div><p class="empty-p">No evaluations have been shared under \''+code+'\' yet. Share an eval with this team code from the output screen to see it here.</p></div>'
+      document.getElementById('td-empty').style.display='block'
+      return
+    }
+    tdRawRows = rows
+    document.getElementById('td-body').style.display='block'
+    renderTeamDashboardDemo()
+  }catch(e){
+    document.getElementById('td-loading').style.display='none'
+    document.getElementById('td-empty').innerHTML = '<div class="empty"><div class="empty-ico">&#x26A0;&#xFE0F;</div><div class="empty-h">Could not load this team code</div><p class="empty-p">Double check it and try again.</p></div>'
+    document.getElementById('td-empty').style.display='block'
+    console.error(e)
+  }
+}
+
+function setTdPeriod(period, btn){
+  tdPeriod = period
+  document.querySelectorAll('#td-period-tabs .stage-pill').forEach(function(t){t.classList.remove('on')})
+  btn.classList.add('on')
+  renderTeamDashboardDemo()
+}
+
+function computeTdData(rows){
+  var evals = rows.map(function(r){
+    var ev = r.eval_json || {}
+    return {
+      id: r.id,
+      aeName: r.ae_name || 'Unassigned',
+      fw: ev.fw || '',
+      dealName: ev.dealName || 'Untitled deal',
+      overallScore: typeof ev.overall_score==='number' ? ev.overall_score : 0,
+      sections: ev.sections || [],
+      date: ev.date || r.created_at
+    }
+  })
+
+  // Dominant framework — the heatmap has fixed columns, so it can only
+  // meaningfully show one framework's sections at a time.
+  var fwCounts = {}
+  evals.forEach(function(e){ fwCounts[e.fw] = (fwCounts[e.fw]||0)+1 })
+  var dominantFw = Object.keys(fwCounts).sort(function(a,b){return fwCounts[b]-fwCounts[a]})[0] || ''
+  var dominantEvals = evals.filter(function(e){ return e.fw === dominantFw })
+
+  var sectionNames = []
+  dominantEvals.forEach(function(e){
+    e.sections.forEach(function(s){
+      if(s.name && sectionNames.indexOf(s.name)===-1) sectionNames.push(s.name)
+    })
+  })
+
+  var aeNames = []
+  evals.forEach(function(e){ if(aeNames.indexOf(e.aeName)===-1) aeNames.push(e.aeName) })
+
+  var avgScore = Math.round(evals.reduce(function(s,e){return s+e.overallScore},0) / evals.length)
+  var atRiskEvals = evals.filter(function(e){ return e.overallScore < 70 })
+
+  var sectionTeamAvg = {}
+  sectionNames.forEach(function(name){
+    var scores = []
+    dominantEvals.forEach(function(e){
+      var sec = e.sections.find(function(s){return s.name===name})
+      if(sec && typeof sec.score==='number') scores.push(sec.score)
+    })
+    sectionTeamAvg[name] = scores.length ? Math.round(scores.reduce(function(a,b){return a+b},0)/scores.length) : null
+  })
+
+  var weakest = null
+  sectionNames.forEach(function(name){
+    var v = sectionTeamAvg[name]
+    if(v===null) return
+    if(!weakest || v < weakest.avg) weakest = {name:name, avg:v}
+  })
+
+  var aePerSection = {}
+  aeNames.forEach(function(nm){
+    aePerSection[nm] = {}
+    sectionNames.forEach(function(sn){
+      var scores = []
+      dominantEvals.filter(function(e){return e.aeName===nm}).forEach(function(e){
+        var sec = e.sections.find(function(s){return s.name===sn})
+        if(sec && typeof sec.score==='number') scores.push(sec.score)
+      })
+      aePerSection[nm][sn] = scores.length ? Math.round(scores.reduce(function(a,b){return a+b},0)/scores.length) : null
+    })
+  })
+
+  var belowTargetCount = 0
+  if(weakest){
+    aeNames.forEach(function(nm){
+      var v = aePerSection[nm][weakest.name]
+      if(v!==null && v<70) belowTargetCount++
+    })
+  }
+
+  var aeSummaries = aeNames.map(function(nm){
+    var aeEvals = evals.filter(function(e){return e.aeName===nm}).sort(function(a,b){return new Date(a.date)-new Date(b.date)})
+    var avg = Math.round(aeEvals.reduce(function(s,e){return s+e.overallScore},0)/aeEvals.length)
+    var secAgg = {}
+    aeEvals.forEach(function(e){
+      e.sections.forEach(function(s){
+        if(!s.name) return
+        secAgg[s.name] = secAgg[s.name] || {sum:0,count:0}
+        secAgg[s.name].sum += s.score||0; secAgg[s.name].count++
+      })
+    })
+    var theirWeakest = null
+    Object.keys(secAgg).forEach(function(name){
+      var avgV = secAgg[name].sum/secAgg[name].count
+      if(!theirWeakest || avgV < theirWeakest.avg) theirWeakest = {name:name, avg:Math.round(avgV)}
+    })
+    var atRisk = aeEvals.filter(function(e){return e.overallScore<70}).length
+    return {
+      name: nm, evalCount: aeEvals.length, avgScore: avg,
+      weakestSection: theirWeakest, atRisk: atRisk,
+      trendPoints: aeEvals.map(function(e){return e.overallScore})
+    }
+  }).sort(function(a,b){return a.avgScore-b.avgScore})
+
+  var dealsAtRisk = atRiskEvals.slice().sort(function(a,b){return a.overallScore-b.overallScore}).map(function(e){
+    var scored = e.sections.filter(function(s){return typeof s.score==='number'})
+    var minScore = scored.length ? Math.min.apply(null, scored.map(function(s){return s.score})) : null
+    var gapNames = minScore===null ? [] : e.sections.filter(function(s){return s.score===minScore}).map(function(s){return s.name})
+    return { dealName: e.dealName, aeName: e.aeName, fw: e.fw, score: e.overallScore, gap: gapNames.join(', ') }
+  })
+
+  return {
+    dominantFw: dominantFw, sectionNames: sectionNames, aeNames: aeNames,
+    avgScore: avgScore, evalCount: evals.length, atRiskCount: atRiskEvals.length,
+    sectionTeamAvg: sectionTeamAvg, weakest: weakest, belowTargetCount: belowTargetCount,
+    aePerSection: aePerSection, aeSummaries: aeSummaries, dealsAtRisk: dealsAtRisk
+  }
+}
+
+function renderTeamDashboardDemo(){
+  var cutoff = tdPeriodCutoff()
+  var rows = tdRawRows.filter(function(r){
+    var ev = r.eval_json || {}
+    return ev.date && new Date(ev.date) >= cutoff
+  })
+
+  if(!rows.length){
+    document.getElementById('td-kpis').innerHTML=''
+    document.getElementById('td-brief').innerHTML='<p style="font-size:13px;color:var(--tx2)">No evaluations in this period.</p>'
+    document.getElementById('td-hm-head').innerHTML=''
+    document.getElementById('td-hm-body').innerHTML=''
+    document.getElementById('td-hm-avg').innerHTML=''
+    document.getElementById('td-ae-body').innerHTML=''
+    document.getElementById('td-deals-body').innerHTML='<p style="font-size:12px;color:var(--tx3);padding:16px 20px">Nothing to show for this period.</p>'
+    renderTdTrend()
+    return
+  }
+
+  var data = computeTdData(rows)
+  renderTdKpis(data)
+  renderTdBrief(data)
+  renderTdHeatmap(data)
+  renderTdAeTable(data)
+  renderTdDeals(data)
+  renderTdTrend()
+}
+
+function renderTdKpis(data){
+  document.getElementById('td-kpis').innerHTML =
+    '<div class="td-kpi"><div class="td-kpi-l">Team avg score</div><div class="td-kpi-v">'+data.avgScore+'<span style="font-size:15px;color:var(--tx3)">/100</span></div></div>'
+    + '<div class="td-kpi"><div class="td-kpi-l">Evals run</div><div class="td-kpi-v">'+data.evalCount+'</div></div>'
+    + '<div class="td-kpi"><div class="td-kpi-l">Active AEs</div><div class="td-kpi-v">'+data.aeNames.length+'</div></div>'
+    + '<div class="td-kpi'+(data.atRiskCount>0?' warn':'')+'"><div class="td-kpi-l">Deals at risk</div><div class="td-kpi-v">'+data.atRiskCount+'</div><div class="td-kpi-sub">scored below 70 — need attention</div></div>'
+}
+
+function renderTdBrief(data){
+  var el = document.getElementById('td-brief')
+  if(!data.weakest){
+    el.innerHTML = '<div class="td-brief-tag">Rekol coach</div><p class="td-brief-p">Not enough section data yet to identify a team-wide pattern.</p>'
+    return
+  }
+  el.innerHTML = '<div class="td-brief-tag">Rekol coach</div>'
+    + '<div class="td-brief-h">Your team\'s blind spot is <em>'+data.weakest.name+'</em></div>'
+    + '<p class="td-brief-p">'+data.weakest.name+' is the weakest dimension across the team at <b>'+data.weakest.avg+'/100</b> — <b>'+data.belowTargetCount+' of '+data.aeNames.length+' AEs</b> are below target.</p>'
+}
+
+function renderTdHeatmap(data){
+  document.getElementById('td-heatmap-label').textContent = (data.dominantFw||'Framework') + ' coverage by rep'
+  document.getElementById('td-hm-head').innerHTML = '<th class="ae-col">Rep</th>' + data.sectionNames.map(function(n){return '<th>'+n.replace(/ /g,'<br>')+'</th>'}).join('')
+
+  document.getElementById('td-hm-body').innerHTML = data.aeNames.map(function(nm){
+    var cells = data.sectionNames.map(function(sn){
+      var v = data.aePerSection[nm][sn]
+      return v===null
+        ? '<td><div class="td-hm-cell" style="color:var(--tx3)">—</div></td>'
+        : '<td><div class="td-hm-cell '+tdScoreClass(v)+'" title="'+nm+' — '+sn+': '+v+'/100">'+v+'</div></td>'
+    }).join('')
+    return '<tr><td class="td-ae-cell"><span class="td-ae-name">'+nm+'</span></td>'+cells+'</tr>'
+  }).join('')
+
+  document.getElementById('td-hm-avg').innerHTML = '<tr class="td-avg-row"><td class="td-ae-cell">Team avg</td>' + data.sectionNames.map(function(sn){
+    var v = data.sectionTeamAvg[sn]
+    return v===null ? '<td><div class="td-avg-v" style="color:var(--tx3)">—</div></td>' : '<td><div class="td-avg-v '+tdScoreClass(v)+'" title="Team average '+sn+': '+v+'/100">'+v+'</div></td>'
+  }).join('') + '</tr>'
+}
+
+function tdSpark(pts){
+  if(pts.length<2) return '<span style="font-size:11px;color:var(--tx3)">—</span>'
+  var w=88,h=26,min=Math.min.apply(null,pts),max=Math.max.apply(null,pts),rng=(max-min)||1
+  var d=pts.map(function(p,i){return (i/(pts.length-1)*w).toFixed(1)+','+(h-2-((p-min)/rng)*(h-4)).toFixed(1)}).join(' ')
+  var lx=w, ly=(h-2-((pts[pts.length-1]-min)/rng)*(h-4)).toFixed(1)
+  var color = pts[pts.length-1] >= pts[0] ? 'var(--green)' : 'var(--red)'
+  return '<svg class="td-trend-svg" width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"><polyline points="'+d+'" fill="none" stroke="'+color+'" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/><circle cx="'+lx+'" cy="'+ly+'" r="2.4" fill="'+color+'"/></svg>'
+}
+
+function scrollToAeDeals(name){
+  var el = document.getElementById('td-deals-body')
+  if(el) el.scrollIntoView({behavior:'smooth', block:'center'})
+}
+
+function renderTdAeTable(data){
+  document.getElementById('td-ae-body').innerHTML = data.aeSummaries.map(function(a){
+    return '<tr onclick="scrollToAeDeals(\''+a.name.replace(/'/g,"\\'")+'\')">'
+      + '<td><span class="td-ae-name">'+a.name+'</span></td>'
+      + '<td class="r num">'+a.evalCount+'</td>'
+      + '<td class="r"><span class="td-score-chip '+tdScoreClass(a.avgScore)+'">'+a.avgScore+'</span></td>'
+      + '<td>'+tdSpark(a.trendPoints)+'</td>'
+      + '<td class="td-weak">'+(a.weakestSection?'<b>'+a.weakestSection.name+'</b>':'—')+'</td>'
+      + '<td class="r"><span class="td-risk-n'+(a.atRisk>=3?' hot':'')+'">'+a.atRisk+'</span></td>'
+      + '</tr>'
+  }).join('')
+}
+
+function renderTdDeals(data){
+  var el = document.getElementById('td-deals-body')
+  if(!data.dealsAtRisk.length){
+    el.innerHTML = '<p style="font-size:12px;color:var(--tx3);padding:16px 20px">No deals at risk right now.</p>'
+    return
+  }
+  el.innerHTML = data.dealsAtRisk.map(function(d){
+    return '<div class="td-deal-row"><span class="td-score-chip '+tdScoreClass(d.score)+'">'+d.score+'</span>'
+      + '<div class="td-deal-main"><div class="td-deal-name">'+d.dealName+'</div><div class="td-deal-meta">'+d.aeName+' · '+d.fw+'</div></div>'
+      + '<div class="td-deal-gap">gap: <span>'+(d.gap||'—')+'</span></div></div>'
+  }).join('')
+}
+
+function tdWeekStart(dateStr){
+  var date = new Date(dateStr)
+  var day = date.getDay()
+  var diff = (day===0?-6:1) - day
+  var monday = new Date(date)
+  monday.setDate(date.getDate()+diff)
+  return monday
+}
+
+function renderTdTrend(){
+  var byWeek = {}
+  tdRawRows.forEach(function(r){
+    var ev = r.eval_json||{}
+    if(!ev.date || typeof ev.overall_score!=='number') return
+    var monday = tdWeekStart(ev.date)
+    var key = monday.toISOString().slice(0,10)
+    byWeek[key] = byWeek[key] || {sum:0,count:0,date:monday}
+    byWeek[key].sum += ev.overall_score
+    byWeek[key].count++
+  })
+  var weeks = Object.keys(byWeek).sort()
+  var points = weeks.map(function(k){
+    var w = byWeek[k]
+    return { score: Math.round(w.sum/w.count), label: w.date.toLocaleDateString('en-GB',{day:'numeric',month:'short'}) }
+  })
+  document.getElementById('td-chart').innerHTML = points.length ? buildChartSVG(points) : '<p style="font-size:13px;color:var(--tx2)">Not enough data yet.</p>'
+}
+
 async function syncEvalCount(){
   if(!currentUser) return
   await supa.from('profiles')
@@ -1536,8 +1974,59 @@ async function syncEvalToSupabase(ev){
     overall_score: ev.overall_score,
     sections: ev.sections,
     deal_name: ev.dealName || null,
-    persona: ev.persona || null
+    persona: ev.persona || null,
+    summary: ev.summary || null,
+    next_steps: ev.next_steps || null
   })
+}
+
+// De-dupe key for merging local vs. account history. Date-only (not the
+// full timestamp) — the client captures ev.date when the eval finishes,
+// but Supabase stamps created_at server-side at insert time, several
+// seconds later, so the same eval's two copies never share an exact
+// timestamp. Same day + same deal + same score is a safe enough match.
+function histDedupeKey(ev){
+  return String(ev.date||'').slice(0,10)+'|'+(ev.dealName||'')+'|'+ev.overall_score
+}
+
+async function loadEvaluationsFromSupabase(){
+  if(!currentUser) return
+  try{
+    var res = await supa.from('evaluations').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(100)
+    if(res.error) throw res.error
+
+    var remoteEvals = (res.data||[]).map(function(r){
+      return {
+        id: r.id,
+        overall_score: r.overall_score,
+        summary: r.summary || '',
+        fw: r.fw,
+        dealName: r.deal_name || '',
+        persona: r.persona || '',
+        date: r.created_at,
+        sections: r.sections || [],
+        next_steps: r.next_steps || []
+      }
+    })
+
+    var merged = {}
+    // Local rows go in first so purely-local (never-synced, e.g.
+    // anonymous pre-sign-in) evals are kept; account rows are written
+    // over them on a matching key, so account data wins on conflict.
+    getHist().forEach(function(ev){ merged[histDedupeKey(ev)] = ev })
+    remoteEvals.forEach(function(ev){ merged[histDedupeKey(ev)] = ev })
+
+    var mergedList = Object.keys(merged).map(function(k){ return merged[k] })
+    mergedList.sort(function(a,b){ return new Date(b.date) - new Date(a.date) })
+    sl('rekol_hist', JSON.stringify(mergedList.slice(0,100)))
+
+    document.getElementById('trends-btn').style.display = getHist().length>=2 ? 'flex' : 'none'
+    var activeView = document.querySelector('.view.on')
+    if(activeView && activeView.id==='v-history') renderHistory()
+    if(activeView && activeView.id==='v-trends') renderTrends()
+  }catch(e){
+    console.error('Could not load evaluations from account (non-critical, local history untouched):', e)
+  }
 }
 
 function saveHist(ev){var h=getHist();h.unshift(ev);sl('rekol_hist',JSON.stringify(h.slice(0,100)))}
@@ -1723,15 +2212,14 @@ document.addEventListener('DOMContentLoaded',function(){
     })
   }
 
-  var count=124;
   supa.rpc('weekly_eval_count').then(function(res){
     if(!res.error&&typeof res.data==='number'&&res.data>0){
-      count=res.data;
       var el=document.getElementById('live-c');
-      if(el)el.textContent=count+' evaluations run this week';
+      if(el)el.textContent=res.data+' evaluations run this week';
+      var badge=document.getElementById('live-badge');
+      if(badge)badge.style.display='inline-flex';
     }
   }).catch(function(){});
-  setInterval(function(){if(Math.random()>.65){count++;var el=document.getElementById('live-c');if(el)el.textContent=count+' evaluations run this week'}},9000);
 });
 </script>
 </body>

@@ -35,7 +35,7 @@
     nav.scrolled{border-color:var(--bd)}
     .logo{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:500;letter-spacing:.03em;color:var(--tx);cursor:pointer;user-select:none}
     .nav-r{display:flex;align-items:center;gap:8px}
-    .nav-user{font-size:11px;color:var(--tx3)}
+    .nav-user{font-size:11px;color:var(--tx3);margin-left:8px}
     @media(max-width:600px){.nav-user{display:none!important}}
     .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 17px;border-radius:var(--rs);font-family:'Sora',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .16s;border:none}
     .btn-ghost{background:transparent;color:var(--tx2);border:1px solid var(--bd)}
@@ -357,9 +357,9 @@
     <button class="btn btn-ghost" id="trends-btn" onclick="go('trends')" style="display:none">Trends</button>
     <button class="btn btn-ghost" id="hist-btn" onclick="go('history')" style="display:none">History</button>
     <button class="btn btn-ghost" id="manager-nav-btn" onclick="go('manager')" style="display:none">Manager</button>
-    <span class="nav-user" id="nav-user" style="display:none"></span>
     <button class="btn btn-ghost" id="signin-nav-btn" onclick="openSignIn()">Sign in</button>
     <button class="btn btn-ghost" id="signout-btn" onclick="doSignOut()" style="display:none">Sign out</button>
+    <span class="nav-user" id="nav-user" style="display:none"></span>
   </div>
 </nav>
 
@@ -969,8 +969,11 @@ function animSteps(){
 async function callAPI(transcript,framework,customFields,dealName,persona,mode,dealStage){
   var payload=JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full',dealStage:dealStage});
   var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
-  if(res.status===502||res.status===504){
-    // Server hit its time budget (or Netlify's hard limit) — retry once with a fresh 10s window
+  if(res.status===502){
+    // 502 (Anthropic error / malformed JSON) is often transient — one retry is cheap and usually fixes it.
+    // 504 (Netlify's own function timeout) is a genuine timeout: the call already ran the full time budget
+    // and got killed, so blindly re-firing it just bills a second full generation for a result the user
+    // never sees. Don't auto-retry those — let the caller's catch surface it instead.
     res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
   }
   if(!res.ok)throw new Error('API '+res.status);

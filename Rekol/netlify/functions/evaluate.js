@@ -146,8 +146,21 @@ exports.handler = async function (event) {
       }
     }
 
-    // FULL MODE — all sections, coaching, next steps
-    const secSchema = sections.map(s => JSON.stringify({
+    // FULL MODE — all sections, coaching, next steps.
+    //
+    // Measured directly against production: a single full-mode call over a
+    // ~5.2k-word transcript (all 6 MEDDIC sections + next_steps in one
+    // generation, up to 8000 output tokens) took 22-29s across repeated
+    // runs — already flirting with, and sometimes exceeding, the 26s
+    // Netlify sync-function ceiling set in netlify.toml. That ceiling is
+    // Netlify's max for a synchronous function on this plan, so it can't
+    // be raised further; the fix is to shrink the slowest call instead.
+    //
+    // Splitting section generation into two parallel calls (each covering
+    // half the sections) roughly halves each call's completion length
+    // without adding wall time, since they run concurrently — total time
+    // becomes ~max(callA, callB) instead of one call generating everything.
+    const secSchema = (secs) => secs.map(s => JSON.stringify({
       name: s,
       score: '<0-100>',
       status: '<red|amber|green>',
@@ -157,7 +170,7 @@ exports.handler = async function (event) {
       next_step: '<one concrete next action>'
     })).join(',\n')
 
-    const fullPrompt = [
+    const buildPrompt = (secs, includeNextSteps) => [
       'You are an expert enterprise sales coach. Analyse this call transcript and return a structured evaluation as JSON.',
       '',
       'Framework: ' + fwDesc,
@@ -168,31 +181,65 @@ exports.handler = async function (event) {
       'Transcript:',
       transcript,
       '',
+      sections.length > secs.length
+        ? 'Only evaluate these specific sections of the framework — a separate pass covers the rest: ' + secs.join(', ')
+        : '',
+      '',
       'Return ONLY valid JSON, no markdown, no backticks:',
-      '{"sections":[' + secSchema + '],"next_steps":["<step 1>","<step 2>","<step 3>"]}',
+      '{"sections":[' + secSchema(secs) + ']' + (includeNextSteps ? ',"next_steps":["<step 1>","<step 2>","<step 3>"]' : '') + '}',
       '',
       'Scoring: red=0-40, amber=41-70, green=71-100. Be specific and honest. If something was not in the transcript, say so clearly.'
     ].filter(Boolean).join('\n')
 
-    console.log('Full mode — framework:', framework, 'transcript length:', transcript.length)
-    const fullResult = await postAndParse({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: fullPrompt }],
-    }, 'Full mode', startTime)
+    // Only split when there's more than one section to split — a
+    // single-field custom framework just runs one call as before.
+    const mid = Math.ceil(sections.length / 2)
+    const groupA = sections.length > 1 ? sections.slice(0, mid) : sections
+    const groupB = sections.length > 1 ? sections.slice(mid) : []
 
-    // Discard the transcript now that the API call is done — it must not
+    console.log('Full mode — framework:', framework, 'transcript length:', transcript.length, 'split:', groupA.length, '+', groupB.length)
+
+    const calls = [
+      postAndParse({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: buildPrompt(groupA, groupB.length === 0) }],
+      }, 'Full mode (A)', startTime),
+    ]
+    if (groupB.length) {
+      calls.push(postAndParse({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4000,
+        messages: [{ role: 'user', content: buildPrompt(groupB, true) }],
+      }, 'Full mode (B)', startTime))
+    }
+    const [resultA, resultB] = await Promise.all(calls)
+
+    // Discard the transcript now that the API calls are done — it must not
     // be held in memory any longer than the request needs it for.
     transcript = null
 
-    if (fullResult.error) {
-      return { statusCode: 502, body: JSON.stringify({ error: fullResult.error }) }
+    if (resultA.error || (resultB && resultB.error)) {
+      return { statusCode: 502, body: JSON.stringify({ error: resultA.error || resultB.error }) }
+    }
+
+    let merged
+    try {
+      const parsedA = JSON.parse(resultA.raw)
+      const parsedB = resultB ? JSON.parse(resultB.raw) : null
+      merged = {
+        sections: (parsedA.sections || []).concat(parsedB ? (parsedB.sections || []) : []),
+        next_steps: (parsedB || parsedA).next_steps || [],
+      }
+    } catch (e) {
+      console.error('Full mode merge failed:', e.message)
+      return { statusCode: 502, body: JSON.stringify({ error: 'parse_failed' }) }
     }
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: fullResult.raw,
+      body: JSON.stringify(merged),
     }
 
   } catch (err) {

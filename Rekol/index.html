@@ -140,13 +140,6 @@
     .fw-c:hover{background:var(--s2)}
     .fw-nm{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:500;color:var(--ac);margin-bottom:8px}
     .fw-d{font-size:12px;color:var(--tx2);line-height:1.65}
-    .testi-g{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    .testi{background:var(--s1);padding:24px;border-radius:var(--r);border:1px solid var(--bd)}
-    .testi-q{font-size:13px;color:var(--tx2);line-height:1.75;margin-bottom:18px;font-style:italic}
-    .testi-a{display:flex;align-items:center;gap:10px}
-    .testi-av{width:32px;height:32px;border-radius:50%;background:var(--s2);border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:var(--tx2);flex-shrink:0}
-    .testi-n{font-size:12px;font-weight:600}
-    .testi-r{font-size:11px;color:var(--tx3)}
     footer{border-top:1px solid var(--bd);padding:28px 36px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
     .f-links{display:flex;gap:20px;flex-wrap:wrap}
     .f-links a{font-size:12px;color:var(--tx3);text-decoration:none;transition:color .16s}
@@ -344,7 +337,6 @@
       .step:first-child{border-radius:var(--r) var(--r) 0 0}
       .step:last-child{border-radius:0 0 var(--r) var(--r)}
       .fw-grid{grid-template-columns:1fr 1fr}
-      .testi-g{grid-template-columns:1fr}
       footer{flex-direction:column;padding:20px 16px}
       .lp-wrap{padding:0 16px 60px}
       .out-wrap{padding:32px 16px}
@@ -375,7 +367,7 @@
 <div id="v-home" class="view on">
   <div class="hero">
     <div class="hero-glow"></div>
-    <div class="live-badge"><span class="live-dot"></span><span id="live-c">124 evaluations run this week</span></div>
+    <div class="live-badge" id="live-badge" style="display:none"><span class="live-dot"></span><span id="live-c"></span></div>
     <h1 class="hero-h">Be present.<br class="hero-br"> Let <span style="color:var(--ac)">Rekol</span><br class="hero-br"> handle the rest.</h1>
     <p class="hero-sub">Paste your transcript below. Get an instant evaluation against MEDDIC, BANT, SPIN — or your own framework. No signup needed.</p>
   </div>
@@ -507,15 +499,6 @@
         <div class="fw-c"><div class="fw-nm">BANT</div><p class="fw-d">Budget · Authority · Need · Timeline. Fast, clean qualification for high-velocity deals.</p></div>
         <div class="fw-c"><div class="fw-nm">SPIN</div><p class="fw-d">Situation · Problem · Implication · Need-Payoff. Consultative selling done right.</p></div>
         <div class="fw-c"><div class="fw-nm">Custom</div><p class="fw-d">Your fields. Your criteria. Saved to your account for every future call.</p></div>
-      </div>
-    </div>
-    <div>
-      <div class="lp-label">WHAT A<span style="text-transform:none">Es</span> SAY</div>
-      <h2 class="lp-h">What AEs say.</h2>
-      <div class="testi-g">
-        <div class="testi"><p class="testi-q">"I used to spend 20 minutes writing up call notes after every meeting. Now I paste the transcript and I'm done in 30 seconds. The coaching tips alone are worth it."</p><div class="testi-a"><div class="testi-av">J</div><div><div class="testi-n">James R.</div><div class="testi-r">Senior AE · SaaS</div></div></div></div>
-        <div class="testi"><p class="testi-q">"The MEDDIC scoring opened my eyes. I thought I'd qualified the deal — turns out I'd never surfaced the economic buyer. Saved me weeks chasing a deal that was never going to close."</p><div class="testi-a"><div class="testi-av">S</div><div><div class="testi-n">Sarah K.</div><div class="testi-r">Enterprise AE · Fintech</div></div></div></div>
-        <div class="testi"><p class="testi-q">"My manager asked for structured deal reviews. I share the Rekol link and the whole conversation is 10x more productive."</p><div class="testi-a"><div class="testi-av">M</div><div><div class="testi-n">Marcus T.</div><div class="testi-r">Mid-Market AE · HR Tech</div></div></div></div>
       </div>
     </div>
   </div>
@@ -1225,6 +1208,9 @@ async function onAuthStateChange(user){
     setNavUser(user)
     // Load profile from Supabase
     await loadProfile()
+    // Pull History/Trends from the account so a signed-in user sees their
+    // real coaching record on any device, not just this browser's localStorage
+    loadEvaluationsFromSupabase()
     // Manager status + pending team invites — neither should block the UI
     checkManagerStatus()
     claimTeamMemberships()
@@ -1536,8 +1522,59 @@ async function syncEvalToSupabase(ev){
     overall_score: ev.overall_score,
     sections: ev.sections,
     deal_name: ev.dealName || null,
-    persona: ev.persona || null
+    persona: ev.persona || null,
+    summary: ev.summary || null,
+    next_steps: ev.next_steps || null
   })
+}
+
+// De-dupe key for merging local vs. account history. Date-only (not the
+// full timestamp) — the client captures ev.date when the eval finishes,
+// but Supabase stamps created_at server-side at insert time, several
+// seconds later, so the same eval's two copies never share an exact
+// timestamp. Same day + same deal + same score is a safe enough match.
+function histDedupeKey(ev){
+  return String(ev.date||'').slice(0,10)+'|'+(ev.dealName||'')+'|'+ev.overall_score
+}
+
+async function loadEvaluationsFromSupabase(){
+  if(!currentUser) return
+  try{
+    var res = await supa.from('evaluations').select('*').eq('user_id', currentUser.id).order('created_at', {ascending:false}).limit(100)
+    if(res.error) throw res.error
+
+    var remoteEvals = (res.data||[]).map(function(r){
+      return {
+        id: r.id,
+        overall_score: r.overall_score,
+        summary: r.summary || '',
+        fw: r.fw,
+        dealName: r.deal_name || '',
+        persona: r.persona || '',
+        date: r.created_at,
+        sections: r.sections || [],
+        next_steps: r.next_steps || []
+      }
+    })
+
+    var merged = {}
+    // Local rows go in first so purely-local (never-synced, e.g.
+    // anonymous pre-sign-in) evals are kept; account rows are written
+    // over them on a matching key, so account data wins on conflict.
+    getHist().forEach(function(ev){ merged[histDedupeKey(ev)] = ev })
+    remoteEvals.forEach(function(ev){ merged[histDedupeKey(ev)] = ev })
+
+    var mergedList = Object.keys(merged).map(function(k){ return merged[k] })
+    mergedList.sort(function(a,b){ return new Date(b.date) - new Date(a.date) })
+    sl('rekol_hist', JSON.stringify(mergedList.slice(0,100)))
+
+    document.getElementById('trends-btn').style.display = getHist().length>=2 ? 'flex' : 'none'
+    var activeView = document.querySelector('.view.on')
+    if(activeView && activeView.id==='v-history') renderHistory()
+    if(activeView && activeView.id==='v-trends') renderTrends()
+  }catch(e){
+    console.error('Could not load evaluations from account (non-critical, local history untouched):', e)
+  }
 }
 
 function saveHist(ev){var h=getHist();h.unshift(ev);sl('rekol_hist',JSON.stringify(h.slice(0,100)))}
@@ -1723,15 +1760,14 @@ document.addEventListener('DOMContentLoaded',function(){
     })
   }
 
-  var count=124;
   supa.rpc('weekly_eval_count').then(function(res){
     if(!res.error&&typeof res.data==='number'&&res.data>0){
-      count=res.data;
       var el=document.getElementById('live-c');
-      if(el)el.textContent=count+' evaluations run this week';
+      if(el)el.textContent=res.data+' evaluations run this week';
+      var badge=document.getElementById('live-badge');
+      if(badge)badge.style.display='inline-flex';
     }
   }).catch(function(){});
-  setInterval(function(){if(Math.random()>.65){count++;var el=document.getElementById('live-c');if(el)el.textContent=count+' evaluations run this week'}},9000);
 });
 </script>
 </body>

@@ -54,6 +54,9 @@ function verifyUser(authHeader) {
 
 function emailjsSend(templateParams) {
   return new Promise((resolve, reject) => {
+    if (!process.env.EMAILJS_INVITE_TEMPLATE_ID) {
+      return reject(new Error('EMAILJS_INVITE_TEMPLATE_ID is not set — cannot send invite email'))
+    }
     const body = JSON.stringify({
       service_id: 'service_occ3ghx',
       template_id: process.env.EMAILJS_INVITE_TEMPLATE_ID,
@@ -70,7 +73,17 @@ function emailjsSend(templateParams) {
     const req = https.request(options, (res) => {
       let raw = ''
       res.on('data', chunk => raw += chunk)
-      res.on('end', () => resolve({ status: res.statusCode, body: raw }))
+      res.on('end', () => {
+        // EmailJS returns a non-2xx status (e.g. bad template_id, bad
+        // accessToken) as a normal HTTP response, not a connection error —
+        // treat that as a failure too, otherwise it resolves "successfully"
+        // and the caller's .catch() never fires, silently swallowing it.
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve({ status: res.statusCode, body: raw })
+        } else {
+          reject(new Error('EmailJS ' + res.statusCode + ': ' + raw))
+        }
+      })
     })
     req.on('error', reject)
     req.write(body)
@@ -142,14 +155,20 @@ exports.handler = async function (event) {
 
     const managerName = (caller.user_metadata && caller.user_metadata.full_name) || caller.email
 
-    await Promise.all(newlyInvited.map(m =>
+    const emailResults = await Promise.all(newlyInvited.map(m =>
       emailjsSend({
         to_email: m.invited_email,
         manager_name: managerName,
         team_name: team.name,
         link: 'https://getrekol.com'
-      }).catch(err => console.error('Invite email failed for', m.invited_email, err))
+      }).then(() => ({ email: m.invited_email, sent: true }))
+        .catch(err => {
+          console.error('Invite email failed for', m.invited_email, err.message)
+          return { email: m.invited_email, sent: false, error: err.message }
+        })
     ))
+    const emailsSent = emailResults.filter(r => r.sent).length
+    const emailFailures = emailResults.filter(r => !r.sent).map(r => r.email)
 
     const membersRes = await supabaseRequest(
       'GET',
@@ -161,7 +180,7 @@ exports.handler = async function (event) {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ team: { id: team.id, name: team.name }, members: members, invited: newlyInvited.length }),
+      body: JSON.stringify({ team: { id: team.id, name: team.name }, members: members, invited: newlyInvited.length, emailsSent: emailsSent, emailFailures: emailFailures }),
     }
 
   } catch (err) {

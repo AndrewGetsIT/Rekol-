@@ -26,38 +26,35 @@ function post(data) {
   })
 }
 
-// Strips markdown fences and any stray text outside the outermost {...} —
-// recovers most "malformed JSON" responses without needing a re-call.
-function cleanJson(text) {
-  let cleaned = text.replace(/```json|```/g, '').trim()
-  const firstBrace = cleaned.indexOf('{')
-  const lastBrace = cleaned.lastIndexOf('}')
-  if (firstBrace !== -1 && lastBrace > firstBrace) {
-    cleaned = cleaned.slice(firstBrace, lastBrace + 1)
-  }
-  return cleaned
-}
-
-// Calls the Anthropic API and, if the response isn't valid JSON, retries
-// once more — but only if we're still well within Netlify's 10s sync
-// function limit. A server-side retry re-runs a 5-8s Haiku call, so a
-// second retry (or a retry started late) risks a 504 instead of fixing
-// anything; in that case we fail fast so the client can retry with a
-// fresh 10s window instead.
+// Calls the Anthropic API with a forced tool call (tool_choice targeting a
+// single tool whose input_schema defines the exact shape we want) instead
+// of asking for free-text JSON. This eliminates the "malformed JSON" bug
+// class entirely rather than patching around it: the old text-completion
+// approach asked the model to hand-author a JSON string, and a quote-heavy
+// transcript (a prospect quoting a contract clause, a number "in quotes",
+// etc.) reliably produced an unescaped `"` or stray trailing prose that
+// broke JSON.parse — retrying just re-sent the same input and failed
+// identically. With tool use, Anthropic's API returns the tool call's
+// `input` as an already-parsed object; there's no free-text JSON for the
+// model to get wrong, and no JSON.parse on model-authored text at all.
 //
-// A 429 (rate-limited) gets its own short backoff-and-retry path, separate
-// from the malformed-JSON retry above: since full mode now fires two
-// section-group calls concurrently (see below), each carrying the full
-// transcript, a long transcript can push concurrent input-token volume
-// over the account's tokens-per-minute limit. A brief backoff is usually
-// enough to clear that without falling back to a slow full sequential
-// re-run.
+// A 429 (rate-limited) still gets its own short backoff-and-retry path:
+// full mode fires two section-group calls concurrently, each carrying the
+// full transcript, so a long transcript can push concurrent input-token
+// volume over the account's tokens-per-minute limit. A brief backoff is
+// usually enough to clear that.
 //
-// Returns { raw } on success, or { error, status } otherwise — error is a
-// human-readable string that includes Anthropic's real status/body so
+// A missing/incomplete tool_use block (e.g. generation cut off by
+// max_tokens before the tool call finished) still gets one retry — rare
+// with tool use, but a fresh generation is cheap insurance against hard
+// 502ing on the first bad attempt.
+//
+// Returns { result } on success (already a parsed object — no further
+// parsing needed by the caller), or { error, status } otherwise — error is
+// a human-readable string that includes Anthropic's real status/body so
 // failures are visible in the response itself, not just in server logs we
 // have no way to read from here.
-async function postAndParse(payload, label, startTime) {
+async function postToolCall(payload, label, startTime) {
   let attempt = 0
   while (true) {
     attempt++
@@ -84,14 +81,16 @@ async function postAndParse(payload, label, startTime) {
 
     try {
       const data = JSON.parse(response.body)
-      const raw = cleanJson(data.content[0].text)
-      JSON.parse(raw)
-      return { raw }
+      const toolUse = (data.content || []).find(c => c.type === 'tool_use')
+      if (!toolUse || typeof toolUse.input !== 'object' || toolUse.input === null) {
+        throw new Error('No tool_use result in response (stop_reason: ' + data.stop_reason + ')')
+      }
+      return { result: toolUse.input }
     } catch (e) {
-      console.error(label + ' malformed JSON (attempt ' + attempt + '):', e.message)
+      console.error(label + ' malformed tool response (attempt ' + attempt + '):', e.message)
       const elapsed = Date.now() - startTime
       if (attempt >= 2 || elapsed >= 4000) {
-        return { error: label + ' — returned malformed/unparseable JSON: ' + e.message, status: response.status }
+        return { error: label + ' — returned no valid structured result: ' + e.message, status: response.status }
       }
       // one retry allowed — still within the time budget, loop again
     }
@@ -133,7 +132,7 @@ exports.handler = async function (event) {
     // QUICK MODE — just score + summary, fast response
     if (mode === 'quick') {
       const quickPrompt = [
-        'You are an expert enterprise sales coach. Analyse this call transcript.',
+        'You are an expert enterprise sales coach. Analyse this call transcript and call submit_quick_eval with your assessment.',
         '',
         'Framework: ' + fwDesc,
         dealName ? 'Deal: ' + dealName : '',
@@ -143,16 +142,28 @@ exports.handler = async function (event) {
         'Transcript:',
         transcript,
         '',
-        'Return ONLY valid JSON, no markdown, no backticks:',
-        '{"overall_score":<0-100>,"summary":"<honest 2-3 sentence deal assessment>"}',
-        '',
         'Be direct and specific. Score 0-100 honestly.'
       ].filter(Boolean).join('\n')
 
+      const quickTool = {
+        name: 'submit_quick_eval',
+        description: 'Submit the quick evaluation score and summary for this sales call.',
+        input_schema: {
+          type: 'object',
+          properties: {
+            overall_score: { type: 'integer', description: 'Overall deal health, scored honestly 0-100' },
+            summary: { type: 'string', description: 'Honest 2-3 sentence deal assessment' },
+          },
+          required: ['overall_score', 'summary'],
+        },
+      }
+
       console.log('Quick mode — framework:', framework)
-      const quickResult = await postAndParse({
+      const quickResult = await postToolCall({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 500,
+        tools: [quickTool],
+        tool_choice: { type: 'tool', name: 'submit_quick_eval' },
         messages: [{ role: 'user', content: quickPrompt }],
       }, 'Quick mode', startTime)
 
@@ -167,7 +178,7 @@ exports.handler = async function (event) {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: quickResult.raw,
+        body: JSON.stringify(quickResult.result),
       }
     }
 
@@ -185,18 +196,40 @@ exports.handler = async function (event) {
     // half the sections) roughly halves each call's completion length
     // without adding wall time, since they run concurrently — total time
     // becomes ~max(callA, callB) instead of one call generating everything.
-    const secSchema = (secs) => secs.map(s => JSON.stringify({
-      name: s,
-      score: '<0-100>',
-      status: '<red|amber|green>',
-      covered: '<what was discussed, or Not addressed if absent>',
-      gaps: '<specific gaps or missing information>',
-      coaching: '<one actionable coaching tip tailored to personas if provided>',
-      next_step: '<one concrete next action>'
-    })).join(',\n')
+    // Tool input_schema replaces the old hand-rolled JSON-in-prompt schema
+    // — Anthropic validates/structures the output itself, so section text
+    // fields (covered/gaps/coaching, which routinely contain the
+    // prospect's own quoted words) can't break parsing the way free-text
+    // JSON could.
+    const sectionToolSchema = (includeNextSteps) => {
+      const properties = {
+        sections: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              name: { type: 'string' },
+              score: { type: 'integer', description: '0-100' },
+              status: { type: 'string', enum: ['red', 'amber', 'green'], description: 'red=0-40, amber=41-70, green=71-100' },
+              covered: { type: 'string', description: 'What was discussed, or "Not addressed" if absent' },
+              gaps: { type: 'string', description: 'Specific gaps or missing information' },
+              coaching: { type: 'string', description: 'One actionable coaching tip, tailored to personas if provided' },
+              next_step: { type: 'string', description: 'One concrete next action' },
+            },
+            required: ['name', 'score', 'status', 'covered', 'gaps', 'coaching', 'next_step'],
+          },
+        },
+      }
+      const required = ['sections']
+      if (includeNextSteps) {
+        properties.next_steps = { type: 'array', items: { type: 'string' }, description: 'Three concrete next actions for the deal overall' }
+        required.push('next_steps')
+      }
+      return { type: 'object', properties, required }
+    }
 
     const buildPrompt = (secs, includeNextSteps) => [
-      'You are an expert enterprise sales coach. Analyse this call transcript and return a structured evaluation as JSON.',
+      'You are an expert enterprise sales coach. Analyse this call transcript and call submit_section_eval with your assessment.',
       '',
       'Framework: ' + fwDesc,
       dealName ? 'Deal: ' + dealName : '',
@@ -208,12 +241,9 @@ exports.handler = async function (event) {
       '',
       sections.length > secs.length
         ? 'Only evaluate these specific sections of the framework — a separate pass covers the rest: ' + secs.join(', ')
-        : '',
+        : 'Evaluate these sections: ' + secs.join(', '),
       '',
-      'Return ONLY valid JSON, no markdown, no backticks:',
-      '{"sections":[' + secSchema(secs) + ']' + (includeNextSteps ? ',"next_steps":["<step 1>","<step 2>","<step 3>"]' : '') + '}',
-      '',
-      'Scoring: red=0-40, amber=41-70, green=71-100. Be specific and honest. If something was not in the transcript, say so clearly.'
+      'Be specific and honest' + (includeNextSteps ? ', and include three concrete next steps for the deal overall' : '') + '. If something was not in the transcript, say so clearly.'
     ].filter(Boolean).join('\n')
 
     // Only split when there's more than one section to split — a
@@ -224,17 +254,27 @@ exports.handler = async function (event) {
 
     console.log('Full mode — framework:', framework, 'transcript length:', transcript.length, 'split:', groupA.length, '+', groupB.length)
 
+    const sectionTool = (includeNextSteps) => ({
+      name: 'submit_section_eval',
+      description: 'Submit the structured section-by-section evaluation for this sales call.',
+      input_schema: sectionToolSchema(includeNextSteps),
+    })
+
     const calls = [
-      postAndParse({
+      postToolCall({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
+        tools: [sectionTool(groupB.length === 0)],
+        tool_choice: { type: 'tool', name: 'submit_section_eval' },
         messages: [{ role: 'user', content: buildPrompt(groupA, groupB.length === 0) }],
       }, 'Full mode (A)', startTime),
     ]
     if (groupB.length) {
-      calls.push(postAndParse({
+      calls.push(postToolCall({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
+        tools: [sectionTool(true)],
+        tool_choice: { type: 'tool', name: 'submit_section_eval' },
         messages: [{ role: 'user', content: buildPrompt(groupB, true) }],
       }, 'Full mode (B)', startTime))
     }
@@ -249,17 +289,9 @@ exports.handler = async function (event) {
       return { statusCode: 502, body: JSON.stringify({ error: errors.join(' | ') }) }
     }
 
-    let merged
-    try {
-      const parsedA = JSON.parse(resultA.raw)
-      const parsedB = resultB ? JSON.parse(resultB.raw) : null
-      merged = {
-        sections: (parsedA.sections || []).concat(parsedB ? (parsedB.sections || []) : []),
-        next_steps: (parsedB || parsedA).next_steps || [],
-      }
-    } catch (e) {
-      console.error('Full mode merge failed:', e.message)
-      return { statusCode: 502, body: JSON.stringify({ error: 'parse_failed' }) }
+    const merged = {
+      sections: (resultA.result.sections || []).concat(resultB ? (resultB.result.sections || []) : []),
+      next_steps: (resultB ? resultB.result : resultA.result).next_steps || [],
     }
 
     return {

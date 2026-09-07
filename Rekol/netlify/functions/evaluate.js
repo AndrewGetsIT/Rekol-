@@ -44,29 +44,54 @@ function cleanJson(text) {
 // second retry (or a retry started late) risks a 504 instead of fixing
 // anything; in that case we fail fast so the client can retry with a
 // fresh 10s window instead.
-// Returns { raw } on success, or { error } otherwise.
+//
+// A 429 (rate-limited) gets its own short backoff-and-retry path, separate
+// from the malformed-JSON retry above: since full mode now fires two
+// section-group calls concurrently (see below), each carrying the full
+// transcript, a long transcript can push concurrent input-token volume
+// over the account's tokens-per-minute limit. A brief backoff is usually
+// enough to clear that without falling back to a slow full sequential
+// re-run.
+//
+// Returns { raw } on success, or { error, status } otherwise — error is a
+// human-readable string that includes Anthropic's real status/body so
+// failures are visible in the response itself, not just in server logs we
+// have no way to read from here.
 async function postAndParse(payload, label, startTime) {
   let attempt = 0
   while (true) {
     attempt++
-    const response = await post(payload)
-
-    if (response.status !== 200) {
-      console.error(label + ' Anthropic error:', response.body)
-      return { error: 'AI service error' }
+    let response
+    try {
+      response = await post(payload)
+    } catch (err) {
+      console.error(label + ' request failed:', err.message)
+      return { error: label + ' — request failed: ' + err.message, status: null }
     }
 
-    const data = JSON.parse(response.body)
-    const raw = cleanJson(data.content[0].text)
+    if (response.status === 429 && attempt < 3) {
+      const wait = 800 * attempt
+      console.error(label + ' rate-limited (429, attempt ' + attempt + ') — retrying in ' + wait + 'ms')
+      await new Promise(resolve => setTimeout(resolve, wait))
+      continue
+    }
+
+    if (response.status !== 200) {
+      const snippet = (response.body || '').slice(0, 300)
+      console.error(label + ' Anthropic error ' + response.status + ':', snippet)
+      return { error: label + ' — Anthropic ' + response.status + ': ' + snippet, status: response.status }
+    }
 
     try {
+      const data = JSON.parse(response.body)
+      const raw = cleanJson(data.content[0].text)
       JSON.parse(raw)
       return { raw }
     } catch (e) {
       console.error(label + ' malformed JSON (attempt ' + attempt + '):', e.message)
       const elapsed = Date.now() - startTime
       if (attempt >= 2 || elapsed >= 4000) {
-        return { error: 'parse_failed' }
+        return { error: label + ' — returned malformed/unparseable JSON: ' + e.message, status: response.status }
       }
       // one retry allowed — still within the time budget, loop again
     }
@@ -220,7 +245,8 @@ exports.handler = async function (event) {
     transcript = null
 
     if (resultA.error || (resultB && resultB.error)) {
-      return { statusCode: 502, body: JSON.stringify({ error: resultA.error || resultB.error }) }
+      const errors = [resultA.error, resultB && resultB.error].filter(Boolean)
+      return { statusCode: 502, body: JSON.stringify({ error: errors.join(' | ') }) }
     }
 
     let merged

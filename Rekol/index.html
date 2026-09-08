@@ -765,12 +765,27 @@ var FW_FIELDS={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision 
 var FW_DESC={MEDDIC:'Metrics (quantifiable ROI/impact), Economic Buyer (ultimate decision maker identified and engaged), Decision Criteria (evaluation criteria mapped), Decision Process (buying steps and timeline understood), Identify Pain (critical business pain uncovered), Champion (internal advocate identified)',BANT:'Budget (confirmed budget exists), Authority (speaking with or have access to decision maker), Need (genuine business need established), Timeline (purchase timeline agreed or realistic)',SPIN:'Situation (context and background gathered), Problem (core problems identified), Implication (downstream consequences explored), Need-Payoff (value of solving the problem articulated)'};
 var OB=[{h:'Pick your framework',p:"Select MEDDIC, BANT, SPIN, or build a custom one. Hover the ? next to each name to see exactly what it covers."},{h:'Paste your transcript',p:"Copy from Gong, Chorus, Otter.ai, or anywhere. The word count shows when you've got enough for a strong evaluation."},{h:'Review, edit and share',p:"Every section scores red, amber or green. Edit the output, copy to Salesforce, or share a link with your manager in one click."}];
 
+// Trends/History are a personal coaching record. A manager who has never
+// run their own eval has nothing to show there — their equivalent views
+// are the team-wide trend on the Manager dashboard and each rep's own
+// trend in the AE drill-down, not a standalone personal page. A manager
+// who's also a player-coach (has run at least one eval themselves) keeps
+// the normal nav; this only hides for manager-only accounts.
+function isManagerOnly(){
+  return myTeams.length>0 && getHist().length===0
+}
+function applyRoleAwareNav(){
+  var mgrOnly=isManagerOnly()
+  document.getElementById('hist-btn').style.display=(signedIn&&!mgrOnly)?'flex':'none';
+  document.getElementById('trends-btn').style.display=(!mgrOnly&&getHist().length>=2)?'flex':'none';
+}
+
 function go(v){
+  if((v==='trends'||v==='history')&&isManagerOnly()) v='manager';
   document.querySelectorAll('.view').forEach(function(e){e.classList.remove('on')});
   document.getElementById('v-'+v).classList.add('on');
   window.scrollTo(0,0);
-  document.getElementById('hist-btn').style.display=signedIn?'flex':'none';
-  document.getElementById('trends-btn').style.display=getHist().length>=2?'flex':'none';
+  applyRoleAwareNav();
   document.getElementById('signin-nav-btn').style.display=signedIn?'none':'flex';
   if(v==='history')renderHistory();
   if(v==='trends')renderTrends();
@@ -1206,7 +1221,7 @@ async function doSignOut(){
   signedIn=false; currentUser=null;
   myTeams=[];currentTeamId=null;teamDashboardData=null;
   sl('rekol_signed','0')
-  document.getElementById('hist-btn').style.display='none'
+  applyRoleAwareNav()
   document.getElementById('signin-nav-btn').style.display='flex'
   document.getElementById('manager-nav-btn').style.display='none'
   setNavUser(null)
@@ -1219,7 +1234,6 @@ async function onAuthStateChange(user){
     signedIn=true; currentUser=user;
     sl('rekol_signed','1')
     closeOv('ov-signin')
-    document.getElementById('hist-btn').style.display='flex'
     document.getElementById('signin-nav-btn').style.display='none'
     document.getElementById('signout-btn').style.display='flex'
     setNavUser(user)
@@ -1227,9 +1241,14 @@ async function onAuthStateChange(user){
     await loadProfile()
     // Pull History/Trends from the account so a signed-in user sees their
     // real coaching record on any device, not just this browser's localStorage
-    loadEvaluationsFromSupabase()
-    // Manager status + pending team invites — neither should block the UI
-    checkManagerStatus()
+    // — and check manager status — concurrently. Both are needed before we
+    // can correctly decide whether this is a manager-only account (role-
+    // aware nav + landing surface), so wait for both before deciding.
+    await Promise.all([loadEvaluationsFromSupabase(), checkManagerStatus()])
+    applyRoleAwareNav()
+    if(isManagerOnly() && document.getElementById('v-home').classList.contains('on')){
+      go('manager')
+    }
     claimTeamMemberships()
     // Send welcome email on first ever sign in
     if(!gl('rekol_welcomed')){
@@ -1247,7 +1266,7 @@ async function onAuthStateChange(user){
   } else {
     signedIn=false; currentUser=null;
     myTeams=[];currentTeamId=null;teamDashboardData=null;
-    document.getElementById('hist-btn').style.display='none'
+    applyRoleAwareNav()
     document.getElementById('signin-nav-btn').style.display='flex'
     document.getElementById('signout-btn').style.display='none'
     document.getElementById('manager-nav-btn').style.display='none'
@@ -1297,6 +1316,7 @@ async function checkManagerStatus(){
   var res = await supa.from('teams').select('id,name').eq('owner_id', currentUser.id).order('created_at')
   myTeams = res.data || []
   document.getElementById('manager-nav-btn').style.display = myTeams.length ? 'flex' : 'none'
+  applyRoleAwareNav()
 }
 
 // Claims any pending team invites addressed to this email. Silent unless
@@ -1559,7 +1579,11 @@ function renderAeProfilePanel(data){
     + '<div class="card"><div class="card-l">Framework'+(rep.frameworksUsed.length===1?'':'s')+'</div><div class="card-t" style="padding-top:8px">'+rep.frameworksUsed.join(', ')+'</div></div>'
     + '</div>'
 
-  var chartPoints = rep.trend.filter(function(t){return t.score!==null}).map(function(t){
+  // Last 10 evals for the chart — same window as the personal Trends page
+  // — even though rep.evalCount/avgScore above reflect their full career
+  // record. rep.trend is already chronological (oldest first), so the
+  // last 10 entries are the most recent 10.
+  var chartPoints = rep.trend.filter(function(t){return t.score!==null}).slice(-10).map(function(t){
     return { score:t.score, label:new Date(t.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) }
   })
   if(chartPoints.length > 1){
@@ -1709,7 +1733,7 @@ async function loadEvaluationsFromSupabase(){
     mergedList.sort(function(a,b){ return new Date(b.date) - new Date(a.date) })
     sl('rekol_hist', JSON.stringify(mergedList.slice(0,100)))
 
-    document.getElementById('trends-btn').style.display = getHist().length>=2 ? 'flex' : 'none'
+    applyRoleAwareNav()
     var activeView = document.querySelector('.view.on')
     if(activeView && activeView.id==='v-history') renderHistory()
     if(activeView && activeView.id==='v-trends') renderTrends()
@@ -1787,12 +1811,36 @@ function buildChartSVG(points){
   return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" style="display:block;overflow:visible">'+grid+'<polyline points="'+linePts+'" fill="none" stroke="var(--ac)" stroke-width="2"/>'+circles+labels+'</svg>';
 }
 
+// Same coercion as the server-side fix (team-dashboard.js / ae-drilldown.js)
+// — scores can be a numeric string in older records, and `sum += "55"`
+// silently becomes string concatenation once sum is no longer a number,
+// producing exactly the giant garbage totals seen here. Coerce and clamp
+// before any arithmetic touches a score.
+function cleanScore(raw){
+  var n=parseInt(raw,10);
+  if(!Number.isFinite(n))return null;
+  return Math.max(0,Math.min(100,n));
+}
+
+// De-dupe one eval's sections by name (keep first occurrence) before
+// folding into any aggregate — a corrupted or re-run record with the same
+// section twice would otherwise double-count it, and for the chronological
+// most-improved comparison, would insert two "time points" for what's
+// really the same evaluation.
+function dedupeSections(sections){
+  var seen={},out=[];
+  (sections||[]).forEach(function(s){
+    if(s&&s.name&&!seen[s.name]){seen[s.name]=true;out.push(s)}
+  });
+  return out;
+}
+
 function renderTrends(){
   var hist=getHist();
   var last10=hist.slice(0,10).slice().reverse();
   var points=last10.map(function(ev){
-    return {score:ev.overall_score,label:new Date(ev.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})};
-  });
+    return {score:cleanScore(ev.overall_score),label:new Date(ev.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'})};
+  }).filter(function(p){return p.score!==null});
   document.getElementById('trends-chart').innerHTML=points.length?buildChartSVG(points):'<p style="font-size:13px;color:var(--tx2)">Not enough data yet.</p>';
 
   // Per-framework section breakdown across full history
@@ -1802,9 +1850,11 @@ function renderTrends(){
   Object.keys(byFw).forEach(function(fwName){
     var evals=byFw[fwName],agg={};
     evals.forEach(function(ev){
-      (ev.sections||[]).forEach(function(sec){
+      dedupeSections(ev.sections).forEach(function(sec){
+        var score=cleanScore(sec.score);
+        if(score===null)return;
         agg[sec.name]=agg[sec.name]||{sum:0,count:0};
-        agg[sec.name].sum+=sec.score;agg[sec.name].count++;
+        agg[sec.name].sum+=score;agg[sec.name].count++;
       });
     });
     var rows=Object.keys(agg).map(function(name){
@@ -1818,10 +1868,12 @@ function renderTrends(){
   // Most improved / needs focus — aggregate section scores chronologically across all history
   var byName={};
   hist.slice().reverse().forEach(function(ev){
-    (ev.sections||[]).forEach(function(sec){
+    dedupeSections(ev.sections).forEach(function(sec){
+      var score=cleanScore(sec.score);
+      if(score===null)return;
       byName[sec.name]=byName[sec.name]||{scores:[],sum:0,count:0};
-      byName[sec.name].scores.push(sec.score);
-      byName[sec.name].sum+=sec.score;byName[sec.name].count++;
+      byName[sec.name].scores.push(score);
+      byName[sec.name].sum+=score;byName[sec.name].count++;
     });
   });
   var mostImproved=null,maxIncrease=-Infinity,needsFocus=null,minAvg=Infinity;
@@ -1870,7 +1922,7 @@ document.addEventListener('DOMContentLoaded',function(){
       onAuthStateChange(session.user)
     } else if(event === 'TOKEN_REFRESHED'){
       signedIn=true; currentUser=session.user;
-      document.getElementById('hist-btn').style.display='flex'
+      applyRoleAwareNav()
       document.getElementById('signin-nav-btn').style.display='none'
       document.getElementById('signout-btn').style.display='flex'
       setNavUser(session.user)

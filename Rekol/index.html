@@ -1454,8 +1454,9 @@ function renderManagerDashboard(data){
 
   var html = ''
 
+  var teamAvg = data.teamStats.avgScore
   html += '<div class="callout-row" style="grid-template-columns:1fr 1fr 1fr">'
-    + '<div class="card"><div class="card-l">Team avg score</div><div class="mgr-stat-num" style="color:'+scoreColor(data.teamStats.avgScore)+'">'+data.teamStats.avgScore+'</div></div>'
+    + '<div class="card"><div class="card-l">Team avg score</div><div class="mgr-stat-num" style="color:'+(teamAvg===null?'inherit':scoreColor(teamAvg))+'">'+(teamAvg===null?'—':teamAvg)+'</div></div>'
     + '<div class="card"><div class="card-l">Evaluations</div><div class="mgr-stat-num">'+data.teamStats.evalCount+'</div></div>'
     + '<div class="card"><div class="card-l">Active AEs</div><div class="mgr-stat-num">'+data.memberCount+'</div></div>'
     + '</div>'
@@ -1464,18 +1465,26 @@ function renderManagerDashboard(data){
     html += '<div class="card" style="margin-bottom:20px"><div class="card-l">Focus for your next team meeting</div><div class="card-t">'+data.coachingBrief+'</div></div>'
   }
 
-  html += '<div class="fw-breakdown-h">Framework sections</div>'
-  data.sectionAggregates.forEach(function(s){
-    html += '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'
-    if(s.redCount > 0){
-      html += '<div style="font-size:11px;color:var(--tx3);margin:-6px 0 8px">red in '+s.redCount+' of '+s.totalCount+' evaluations</div>'
-    }
+  // sectionAggregates is grouped by framework — MEDDIC/BANT/SPIN (and any
+  // custom framework) never pooled into one flat list. Each group's own
+  // evalCount is shown alongside its header, and every section row's "red
+  // in N of M evaluations" M is that same framework's count — so it always
+  // matches, unlike a single flat pooled list where M could silently mean
+  // something else per row.
+  data.sectionAggregates.forEach(function(g){
+    html += '<div class="fw-breakdown-h">'+g.framework+' <span style="color:var(--tx3);font-size:12px;font-family:Sora,sans-serif">('+g.evalCount+' eval'+(g.evalCount===1?'':'s')+')</span></div>'
+    g.sections.forEach(function(s){
+      html += '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'
+      if(s.redCount > 0){
+        html += '<div style="font-size:11px;color:var(--tx3);margin:-6px 0 8px">red in '+s.redCount+' of '+s.totalCount+' evaluations</div>'
+      }
+    })
   })
 
   html += '<div class="fw-breakdown-h">By AE</div><div class="hist-g">'
     + data.aeSummaries.map(function(a){
-        var cls = a.avgScore>=70?'hi':a.avgScore>=41?'mid':'lo'
-        return '<div class="hist-c" onclick="showAeDrilldown(\''+a.userId+'\')"><div class="hist-top"><div class="hist-deal">'+a.name+'</div><div class="hist-sc '+cls+'">'+a.avgScore+'</div></div><div class="hist-meta"><span>'+a.evalCount+' eval'+(a.evalCount===1?'':'s')+'</span><span>Weakest: '+(a.weakestSection?a.weakestSection.name:'—')+'</span></div></div>'
+        var cls = a.avgScore===null?'mid':a.avgScore>=70?'hi':a.avgScore>=41?'mid':'lo'
+        return '<div class="hist-c" onclick="showAeDrilldown(\''+a.userId+'\')"><div class="hist-top"><div class="hist-deal">'+a.name+'</div><div class="hist-sc '+cls+'">'+(a.avgScore===null?'—':a.avgScore)+'</div></div><div class="hist-meta"><span>'+a.evalCount+' eval'+(a.evalCount===1?'':'s')+'</span><span>Weakest: '+(a.weakestSection?a.weakestSection.name:'—')+'</span></div></div>'
       }).join('')
     + '</div>'
 
@@ -1488,7 +1497,7 @@ function showAeDrilldown(userId){
   if(!teamDashboardData) return
   var ae = teamDashboardData.aeSummaries.find(function(a){return a.userId===userId})
   if(!ae) return
-  var points = teamDashboardData.teamStats.trend.filter(function(t){return t.userId===userId}).map(function(t){
+  var points = teamDashboardData.teamStats.trend.filter(function(t){return t.userId===userId && t.score!==null}).map(function(t){
     return { score:t.score, label:new Date(t.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) }
   })
   var html = '<div class="fw-breakdown-h">'+ae.name+'</div>'

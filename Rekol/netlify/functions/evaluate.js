@@ -201,14 +201,25 @@ exports.handler = async function (event) {
     // fields (covered/gaps/coaching, which routinely contain the
     // prospect's own quoted words) can't break parsing the way free-text
     // JSON could.
-    const sectionToolSchema = (includeNextSteps) => {
+    // secs' name enum is the actual fix for the "same 3 sections twice"
+    // bug: with only a prompt instruction ("only evaluate these sections")
+    // and no structural constraint, a model under load can default to the
+    // same natural-feeling subset (the first few sections in the always-
+    // fully-described framework) for BOTH parallel calls — the JS slicing
+    // below is provably disjoint, but nothing stopped the model itself
+    // from ignoring which slice it was assigned. Constraining `name` to an
+    // enum of just this call's assigned sections makes that structurally
+    // impossible instead of merely discouraged.
+    const sectionToolSchema = (secs, includeNextSteps) => {
       const properties = {
         sections: {
           type: 'array',
+          minItems: secs.length,
+          maxItems: secs.length,
           items: {
             type: 'object',
             properties: {
-              name: { type: 'string' },
+              name: { type: 'string', enum: secs, description: 'Must be exactly one of the assigned section names for this call' },
               score: { type: 'integer', description: '0-100' },
               status: { type: 'string', enum: ['red', 'amber', 'green'], description: 'red=0-40, amber=41-70, green=71-100' },
               covered: { type: 'string', description: 'What was discussed, or "Not addressed" if absent' },
@@ -254,17 +265,17 @@ exports.handler = async function (event) {
 
     console.log('Full mode — framework:', framework, 'transcript length:', transcript.length, 'split:', groupA.length, '+', groupB.length)
 
-    const sectionTool = (includeNextSteps) => ({
+    const sectionTool = (secs, includeNextSteps) => ({
       name: 'submit_section_eval',
       description: 'Submit the structured section-by-section evaluation for this sales call.',
-      input_schema: sectionToolSchema(includeNextSteps),
+      input_schema: sectionToolSchema(secs, includeNextSteps),
     })
 
     const calls = [
       postToolCall({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
-        tools: [sectionTool(groupB.length === 0)],
+        tools: [sectionTool(groupA, groupB.length === 0)],
         tool_choice: { type: 'tool', name: 'submit_section_eval' },
         messages: [{ role: 'user', content: buildPrompt(groupA, groupB.length === 0) }],
       }, 'Full mode (A)', startTime),
@@ -273,7 +284,7 @@ exports.handler = async function (event) {
       calls.push(postToolCall({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
-        tools: [sectionTool(true)],
+        tools: [sectionTool(groupB, true)],
         tool_choice: { type: 'tool', name: 'submit_section_eval' },
         messages: [{ role: 'user', content: buildPrompt(groupB, true) }],
       }, 'Full mode (B)', startTime))
@@ -289,8 +300,37 @@ exports.handler = async function (event) {
       return { statusCode: 502, body: JSON.stringify({ error: errors.join(' | ') }) }
     }
 
+    // Merge into canonical framework order, deduping by name (first
+    // occurrence wins) — this is the second half of the fix: even with the
+    // schema enum above, don't trust the two halves to be well-formed.
+    // Prospect B's eval returned Metrics/Economic Buyer/Decision Criteria
+    // twice and silently dropped Decision Process/Identify Pain/Champion;
+    // a blind concat would reproduce that. Rather than save a partial or
+    // duplicated record, treat an incomplete merge as a failed eval so the
+    // AE re-runs instead of getting a silently wrong one.
+    const byName = {}
+    const collect = (result) => {
+      if (!result) return
+      ;(result.sections || []).forEach(s => {
+        if (s && s.name && !byName[s.name]) byName[s.name] = s
+      })
+    }
+    collect(resultA.result)
+    collect(resultB && resultB.result)
+
+    const mergedSections = sections.map(name => byName[name]).filter(Boolean)
+
+    if (mergedSections.length !== sections.length) {
+      const missing = sections.filter(name => !byName[name])
+      console.error('Full mode merge incomplete — missing:', missing.join(', '))
+      return {
+        statusCode: 502,
+        body: JSON.stringify({ error: 'Evaluation incomplete — missing section(s): ' + missing.join(', ') + '. Please try again.' }),
+      }
+    }
+
     const merged = {
-      sections: (resultA.result.sections || []).concat(resultB ? (resultB.result.sections || []) : []),
+      sections: mergedSections,
       next_steps: (resultB ? resultB.result : resultA.result).next_steps || [],
     }
 

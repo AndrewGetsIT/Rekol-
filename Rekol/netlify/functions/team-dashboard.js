@@ -178,73 +178,138 @@ exports.handler = async function (event) {
       return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(emptyPayload) }
     }
 
+    // Scores can be strings in older records — evals saved before the
+    // evaluate.js tool-use fix stored `score` as whatever JSON.parse gave
+    // back from free-text model output, which was sometimes a numeric
+    // string ("55") rather than a number. `sum += "55"` on a number
+    // silently becomes string concatenation from that point on (0 + "55"
+    // = "055", then "055" + "41" = "05541"...), producing exactly the
+    // impossible-looking totals ("84512") seen on the dashboard. Coerce
+    // and clamp every score before it ever reaches an accumulator.
+    function cleanScore(raw) {
+      const n = parseInt(raw, 10)
+      if (!Number.isFinite(n)) return null
+      return Math.max(0, Math.min(100, n))
+    }
+
+    // De-dupe a single eval's sections by name (keep first occurrence)
+    // before folding into any aggregate. A corrupted historical record —
+    // e.g. from the split-mode merge bug now fixed at the source in
+    // evaluate.js — can have the same section name twice and others
+    // missing; double-counting the duplicate would inflate both that
+    // section's average and its "N of N evaluations" count relative to
+    // every other section in the same framework.
+    function dedupeSections(sections) {
+      const seen = {}
+      const out = []
+      ;(sections || []).forEach(s => {
+        if (s && s.name && !seen[s.name]) { seen[s.name] = true; out.push(s) }
+      })
+      return out
+    }
+
     // Strip each eval's sections down to name/score/status only — no
     // covered/gaps/coaching/next_step, and there is no transcript field
     // to strip in the first place (never stored).
     const strippedEvals = evals.map(e => ({
       user_id: e.user_id,
-      fw: e.fw,
-      overall_score: e.overall_score,
+      fw: e.fw || 'Unknown',
+      overall_score: cleanScore(e.overall_score),
       created_at: e.created_at,
-      sections: (e.sections || []).map(s => ({ name: s.name, score: s.score, status: s.status })),
+      sections: dedupeSections((e.sections || []).map(s => ({ name: s.name, score: cleanScore(s.score), status: s.status }))),
     }))
 
-    // Team-level stats
+    // Team-level stats — only average evals with a usable overall_score,
+    // same reasoning as cleanScore() above.
+    const scoredEvals = strippedEvals.filter(e => e.overall_score !== null)
     const evalCount = strippedEvals.length
-    const avgScore = Math.round(strippedEvals.reduce((sum, e) => sum + (e.overall_score || 0), 0) / evalCount)
+    const avgScore = scoredEvals.length ? Math.round(scoredEvals.reduce((sum, e) => sum + e.overall_score, 0) / scoredEvals.length) : null
     const trend = strippedEvals.map(e => ({ date: e.created_at, score: e.overall_score, userId: e.user_id }))
 
-    // Per-section aggregate across the whole team
-    const sectionAgg = {}
+    // Per-section aggregate, grouped by framework — MEDDIC/BANT/SPIN (and
+    // any custom framework) each get their own bucket so sections are
+    // never pooled together. A flat name-only key previously mixed them:
+    // no standard-framework names collide today, but a custom field can
+    // be named anything, including something that collides with a
+    // standard section name and means something completely different.
+    const sectionAggByFw = {}
     strippedEvals.forEach(e => {
+      sectionAggByFw[e.fw] = sectionAggByFw[e.fw] || { evalCount: 0, sections: {} }
+      sectionAggByFw[e.fw].evalCount++
       e.sections.forEach(s => {
-        if (!s.name) return
-        sectionAgg[s.name] = sectionAgg[s.name] || { sum: 0, count: 0, red: 0 }
-        sectionAgg[s.name].sum += s.score || 0
-        sectionAgg[s.name].count++
-        if (s.status === 'red') sectionAgg[s.name].red++
+        if (!s.name || s.score === null) return
+        const bucket = sectionAggByFw[e.fw].sections
+        bucket[s.name] = bucket[s.name] || { sum: 0, count: 0, red: 0 }
+        bucket[s.name].sum += s.score
+        bucket[s.name].count++
+        if (s.status === 'red') bucket[s.name].red++
       })
     })
-    const sectionAggregates = Object.keys(sectionAgg).map(name => ({
-      name: name,
-      avgScore: Math.round(sectionAgg[name].sum / sectionAgg[name].count),
-      redCount: sectionAgg[name].red,
-      totalCount: sectionAgg[name].count,
-    })).sort((a, b) => a.avgScore - b.avgScore)
+    const sectionAggregates = Object.keys(sectionAggByFw).map(fw => ({
+      framework: fw,
+      evalCount: sectionAggByFw[fw].evalCount,
+      sections: Object.keys(sectionAggByFw[fw].sections).map(name => {
+        const agg = sectionAggByFw[fw].sections[name]
+        return {
+          name: name,
+          avgScore: Math.round(agg.sum / agg.count),
+          redCount: agg.red,
+          totalCount: agg.count,
+        }
+      }).sort((a, b) => a.avgScore - b.avgScore),
+    })).sort((a, b) => b.evalCount - a.evalCount)
 
-    // Per-AE summary
+    // Flat view (all frameworks' sections, sorted by score) purely for the
+    // coaching-brief prompt below, which just wants "what's weakest" and
+    // doesn't need the per-framework structure.
+    const flatSectionsForBrief = sectionAggregates
+      .flatMap(g => g.sections.map(s => Object.assign({}, s, { framework: g.framework })))
+      .sort((a, b) => a.avgScore - b.avgScore)
+
+    // Per-AE summary — same framework-grouping and coercion fixes as the
+    // team-wide aggregate above, in case one AE's own history spans more
+    // than one framework.
     const byAe = {}
     strippedEvals.forEach(e => {
-      byAe[e.user_id] = byAe[e.user_id] || { evalCount: 0, scoreSum: 0, sections: {} }
+      byAe[e.user_id] = byAe[e.user_id] || { evalCount: 0, scoreSum: 0, scoredCount: 0, sectionsByFw: {} }
       const a = byAe[e.user_id]
       a.evalCount++
-      a.scoreSum += e.overall_score || 0
+      if (e.overall_score !== null) { a.scoreSum += e.overall_score; a.scoredCount++ }
+      a.sectionsByFw[e.fw] = a.sectionsByFw[e.fw] || {}
       e.sections.forEach(s => {
-        if (!s.name) return
-        a.sections[s.name] = a.sections[s.name] || { sum: 0, count: 0 }
-        a.sections[s.name].sum += s.score || 0
-        a.sections[s.name].count++
+        if (!s.name || s.score === null) return
+        const bucket = a.sectionsByFw[e.fw]
+        bucket[s.name] = bucket[s.name] || { sum: 0, count: 0 }
+        bucket[s.name].sum += s.score
+        bucket[s.name].count++
       })
     })
     const aeSummaries = Object.keys(byAe).map(userId => {
       const a = byAe[userId]
-      const sectionAverages = Object.keys(a.sections).map(name => ({
-        name: name,
-        avgScore: Math.round(a.sections[name].sum / a.sections[name].count),
-      })).sort((x, y) => x.avgScore - y.avgScore)
+      const sectionsByFw = Object.keys(a.sectionsByFw).map(fw => ({
+        framework: fw,
+        sections: Object.keys(a.sectionsByFw[fw]).map(name => ({
+          name: name,
+          avgScore: Math.round(a.sectionsByFw[fw][name].sum / a.sectionsByFw[fw][name].count),
+        })).sort((x, y) => x.avgScore - y.avgScore),
+      }))
+      // Flat, sorted view for "weakest section" / the drilldown bar list —
+      // still framework-grouped in sectionsByFw for anything that needs it.
+      const sectionAverages = sectionsByFw.flatMap(g => g.sections).sort((x, y) => x.avgScore - y.avgScore)
       return {
         userId: userId,
         name: nameById[userId] || 'Unknown',
         evalCount: a.evalCount,
-        avgScore: Math.round(a.scoreSum / a.evalCount),
+        avgScore: a.scoredCount ? Math.round(a.scoreSum / a.scoredCount) : null,
         weakestSection: sectionAverages[0] || null,
         sectionAverages: sectionAverages,
+        sectionsByFw: sectionsByFw,
       }
-    }).sort((x, y) => x.avgScore - y.avgScore)
+    }).sort((x, y) => (x.avgScore === null ? 999 : x.avgScore) - (y.avgScore === null ? 999 : y.avgScore))
 
     let coachingBrief = null
     try {
-      coachingBrief = await generateCoachingBrief(sectionAggregates)
+      coachingBrief = await generateCoachingBrief(flatSectionsForBrief)
     } catch (e) {
       console.error('Coaching brief failed (non-fatal):', e.message)
     }

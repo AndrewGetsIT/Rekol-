@@ -247,6 +247,12 @@
     .mgr-badge{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 9px;border-radius:100px;flex-shrink:0}
     .mgr-badge-invited{color:var(--amber);border:1px solid rgba(255,170,51,.3);background:rgba(255,170,51,.08)}
     .mgr-badge-active{color:var(--green);border:1px solid rgba(74,222,128,.3);background:rgba(74,222,128,.08)}
+    .mgr-badge-healthy{color:var(--green);border:1px solid rgba(74,222,128,.3);background:rgba(74,222,128,.08)}
+    .mgr-badge-atrisk{color:var(--amber);border:1px solid rgba(255,170,51,.3);background:rgba(255,170,51,.08)}
+    .mgr-badge-stalled{color:var(--red);border:1px solid rgba(255,82,82,.3);background:rgba(255,82,82,.08)}
+    .ae-profile-cols{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:20px}
+    .ae-profile-col{flex:1;min-width:220px}
+    .ae-profile-col-h{font-size:11px;color:var(--tx3);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
     .mgr-stat-num{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:500}
 
     /* PRACTICE THIS */
@@ -528,6 +534,7 @@
 <!-- OUTPUT -->
 <div id="v-output" class="view">
   <div class="out-wrap">
+    <div id="out-back-link" style="display:none;margin-bottom:14px"><a href="#" onclick="event.preventDefault();backToAeProfile()" style="font-size:12px;color:var(--tx2)">&larr; Back to rep profile</a></div>
     <div class="out-top">
       <div><div class="out-meta" id="out-meta"></div><div class="out-h" id="out-h">Evaluation in progress</div></div>
       <div class="score-c" id="score-c"><span class="score-n" id="score-n">-</span><span class="score-l">/ 100</span></div>
@@ -991,6 +998,13 @@ function copySection(btn){
 function renderOut(ev){
   updateLimitBar();
   resetPractice();
+  // Always reset to the normal (own-eval) chrome first — callers that need
+  // read-only mode (a shared-eval link, or a manager viewing an AE's eval)
+  // hide these again themselves right after calling renderOut. Without
+  // this reset, viewing a foreign eval once would leave the action bar
+  // hidden for every eval rendered afterward in the same session.
+  document.querySelector('#v-output .act-bar').style.display='';
+  document.getElementById('out-back-link').style.display='none';
   document.getElementById('digest-nudge').style.display='none';
   // Reset sections area
   var s=ev.overall_score;
@@ -1493,23 +1507,138 @@ function renderManagerDashboard(data){
   content.innerHTML = html
 }
 
-function showAeDrilldown(userId){
-  if(!teamDashboardData) return
-  var ae = teamDashboardData.aeSummaries.find(function(a){return a.userId===userId})
-  if(!ae) return
-  var points = teamDashboardData.teamStats.trend.filter(function(t){return t.userId===userId && t.score!==null}).map(function(t){
+var lastAeProfileData = null
+
+// The rep's 1:1 coaching profile — the individual counterpart to the team
+// dashboard. Sections 1-4 and the deal-health band (5) are all rules-based
+// and computed server-side from raw evaluations data; only the coaching
+// summary (6) costs an AI call, and that's cached in ae_coaching_cache so
+// reopening the same rep's profile is free after the first time.
+async function showAeDrilldown(userId){
+  var panel = document.getElementById('mgr-ae-drilldown')
+  panel.style.display = 'block'
+  panel.innerHTML = '<p style="font-size:13px;color:var(--tx2)">Loading rep profile&hellip;</p>'
+  panel.scrollIntoView({behavior:'smooth', block:'start'})
+  var token = await getAuthToken()
+  if(!token){ toast('Please sign in again.'); return }
+  try{
+    var res = await fetch('/.netlify/functions/ae-drilldown', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({ teamId: currentTeamId, aeUserId: userId })
+    })
+    var data = await res.json()
+    if(!res.ok || data.error) throw new Error(data.error || 'API '+res.status)
+    lastAeProfileData = data
+    renderAeProfilePanel(data)
+  }catch(e){
+    panel.innerHTML = '<p style="font-size:13px;color:var(--tx2)">Could not load rep profile — please try again.</p>'
+    console.error(e)
+  }
+}
+
+function healthBadgeClass(band){
+  return band==='Healthy'?'mgr-badge-healthy':band==='At risk'?'mgr-badge-atrisk':'mgr-badge-stalled'
+}
+
+function renderAeProfilePanel(data){
+  var panel = document.getElementById('mgr-ae-drilldown')
+  var rep = data.rep
+  var html = ''
+
+  // 1. Rep header — name, evals, RAG avg, trend vs first eval, framework(s)
+  html += '<div class="fw-breakdown-h">'+rep.name+'</div>'
+  var deltaHtml = ''
+  if(rep.trendDelta !== null){
+    deltaHtml = rep.trendDelta>0 ? ' <span style="color:var(--green);font-size:14px">&#x25B2;'+rep.trendDelta+'</span>'
+      : rep.trendDelta<0 ? ' <span style="color:var(--red);font-size:14px">&#x25BC;'+Math.abs(rep.trendDelta)+'</span>'
+      : ' <span style="color:var(--tx3);font-size:14px">flat</span>'
+  }
+  html += '<div class="callout-row" style="grid-template-columns:1fr 1fr 1fr;margin-bottom:16px">'
+    + '<div class="card"><div class="card-l">Avg score</div><div class="mgr-stat-num" style="color:'+(rep.avgScore===null?'inherit':scoreColor(rep.avgScore))+'">'+(rep.avgScore===null?'—':rep.avgScore)+deltaHtml+'</div></div>'
+    + '<div class="card"><div class="card-l">Evaluations</div><div class="mgr-stat-num">'+rep.evalCount+'</div></div>'
+    + '<div class="card"><div class="card-l">Framework'+(rep.frameworksUsed.length===1?'':'s')+'</div><div class="card-t" style="padding-top:8px">'+rep.frameworksUsed.join(', ')+'</div></div>'
+    + '</div>'
+
+  var chartPoints = rep.trend.filter(function(t){return t.score!==null}).map(function(t){
     return { score:t.score, label:new Date(t.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) }
   })
-  var html = '<div class="fw-breakdown-h">'+ae.name+'</div>'
-  html += '<div class="chart-card">'+(points.length?buildChartSVG(points):'<p style="font-size:13px;color:var(--tx2)">Not enough data yet.</p>')+'</div>'
-  html += ae.sectionAverages.map(function(s){
-    return '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'
-  }).join('')
+  if(chartPoints.length > 1){
+    html += '<div class="chart-card" style="margin-bottom:20px">'+buildChartSVG(chartPoints)+'</div>'
+  }
+
+  // 2. Strengths & development areas — rules-based, top/bottom 2 sections
+  if(data.strengths.length || data.developAreas.length){
+    html += '<div class="fw-breakdown-h">Strengths &amp; development areas</div>'
+    html += '<div class="ae-profile-cols">'
+      + '<div class="ae-profile-col"><div class="ae-profile-col-h">Strong</div>'
+      + (data.strengths.map(function(s){return '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'}).join('') || '<p style="font-size:12px;color:var(--tx3)">Not enough data yet.</p>')
+      + '</div>'
+      + '<div class="ae-profile-col"><div class="ae-profile-col-h">Develop</div>'
+      + (data.developAreas.map(function(s){return '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'}).join('') || '<p style="font-size:12px;color:var(--tx3)">Not enough data yet.</p>')
+      + '</div>'
+      + '</div>'
+  }
+
+  // 6. Coaching summary — cached server-side, one AI call per new eval
+  if(data.coachingSummary){
+    html += '<div class="card" style="margin-bottom:20px"><div class="card-l">How to coach '+rep.name.split(' ')[0]+' in your next 1:1</div><div class="card-t">'+data.coachingSummary+'</div></div>'
+  }
+
+  // 3 + 5. Evaluation history, each with its rules-based deal-health band
+  html += '<div class="fw-breakdown-h">Evaluation history</div><div class="hist-g">'
+    + data.evalHistory.map(function(e){
+        var cls = e.overallScore===null?'mid':e.overallScore>=70?'hi':e.overallScore>=41?'mid':'lo'
+        var badge = e.dealHealth ? ' <span class="mgr-badge '+healthBadgeClass(e.dealHealth.band)+'">'+e.dealHealth.band+'</span>' : ''
+        var dt = new Date(e.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+        return '<div class="hist-c" onclick="openAeEval(\''+e.id+'\')"><div class="hist-top"><div class="hist-deal">'+e.dealName+badge+'</div><div class="hist-sc '+cls+'">'+(e.overallScore===null?'—':e.overallScore)+'</div></div><div class="hist-meta"><span>'+e.fw+'</span><span>'+dt+'</span></div></div>'
+      }).join('')
+    + '</div>'
+
+  // 4. Key next steps across deals — derived from evalHistory client-side
+  var dealsWithSteps = data.evalHistory.filter(function(e){
+    return (e.nextSteps && e.nextSteps.length) || e.sections.some(function(s){return s.next_step})
+  })
+  if(dealsWithSteps.length){
+    html += '<div class="fw-breakdown-h">Key next steps</div>'
+    html += dealsWithSteps.map(function(e){
+      var items = (e.nextSteps||[]).concat(e.sections.filter(function(s){return s.next_step}).map(function(s){return s.name+': '+s.next_step}))
+      var dt = new Date(e.createdAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'})
+      return '<div class="card" style="margin-bottom:12px"><div class="card-l">'+e.dealName+' &middot; '+dt+'</div><ul class="next-list">'+items.map(function(i){return '<li>'+i+'</li>'}).join('')+'</ul></div>'
+    }).join('')
+  }
+
   html += '<div style="margin-top:10px"><button class="btn-skip" onclick="document.getElementById(\'mgr-ae-drilldown\').style.display=\'none\'">Close</button></div>'
-  var el = document.getElementById('mgr-ae-drilldown')
-  el.innerHTML = html
-  el.style.display = 'block'
-  el.scrollIntoView({behavior:'smooth', block:'start'})
+
+  panel.innerHTML = html
+}
+
+// Reuses the same eval renderer as the AE's own history view (renderOut is
+// display-only — unlike renderSections, it never calls saveHist/
+// syncEvalToSupabase, so it's safe to point at another user's eval without
+// writing it into the manager's own account).
+function openAeEval(evalId){
+  if(!lastAeProfileData) return
+  var e = lastAeProfileData.evalHistory.find(function(x){return x.id===evalId})
+  if(!e) return
+  curEval = { id:e.id, overall_score:e.overallScore, summary:e.summary, fw:e.fw, dealName:e.dealName, persona:e.persona, date:e.createdAt, sections:e.sections, next_steps:e.nextSteps }
+  renderOut(curEval)
+  document.getElementById('out-back-link').style.display = 'block'
+  document.querySelector('#v-output .act-bar').style.display = 'none'
+  go('output')
+}
+
+// Returns to the rep profile panel instantly from a cached render — no
+// network call, since the manager dashboard's DOM was only hidden, not
+// torn down, by go().
+function backToAeProfile(){
+  document.querySelectorAll('.view').forEach(function(e){e.classList.remove('on')})
+  document.getElementById('v-manager').classList.add('on')
+  window.scrollTo(0,0)
+  document.getElementById('out-back-link').style.display = 'none'
+  if(lastAeProfileData){
+    renderAeProfilePanel(lastAeProfileData)
+    document.getElementById('mgr-ae-drilldown').scrollIntoView({behavior:'smooth', block:'start'})
+  }
 }
 
 async function syncEvalCount(){

@@ -396,6 +396,7 @@
         <button class="fw-tab on" data-fw="MEDDIC" onclick="pickFw('MEDDIC',this)">MEDDIC<span class="ib">?<span class="tip">Metrics · Economic Buyer · Decision Criteria · Decision Process · Identify Pain · Champion. The gold standard for enterprise deals.</span></span></button>
         <button class="fw-tab" data-fw="BANT" onclick="pickFw('BANT',this)">BANT<span class="ib">?<span class="tip">Budget · Authority · Need · Timeline. Fast qualification for high-velocity and SMB sales cycles.</span></span></button>
         <button class="fw-tab" data-fw="SPIN" onclick="pickFw('SPIN',this)">SPIN<span class="ib">?<span class="tip">Situation · Problem · Implication · Need-Payoff. Consultative selling that uncovers deep pain before pitching.</span></span></button>
+        <button class="fw-tab" data-fw="LegalFly" onclick="pickFw('LegalFly',this)">LegalFly<span class="ib">?<span class="tip">MEDDIC plus the LegalFly layer: Security &amp; Anonymisation Wedge · Competitive Positioning · ICP &amp; Qualification Fit. Tuned to how LegalFly sells.</span></span></button>
         <button class="fw-tab" data-fw="Custom" onclick="pickFw('Custom',this)">Custom<span class="ib">?<span class="tip">Define your own evaluation criteria. Name each field and Rekol scores against exactly what matters to your process.</span></span></button>
       </div>
       <div class="cf-box" id="cf-box">
@@ -468,6 +469,18 @@
         <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Problem</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Three people spend two days each per month just pulling data into spreadsheets"</div></div>
         <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Implication</span><span class="good-tag">GREEN</span></div><div class="good-quote">"The stale data cost us a missed stock issue in Q2 — that was a £200k write-off"</div></div>
         <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Need-Payoff</span><span class="good-tag">GREEN</span></div><div class="good-quote">"If we could get that reporting automated, my team gets two days back and I walk into board meetings with live data"</div></div>
+      </div>
+
+      <div class="good-fw-block" data-good-fw="LegalFly">
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Metrics</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Contract review is eating two hours per contract, and we're doing about 40 a month — that's most of a full-time role"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Economic Buyer</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Our GC signs off on anything legal-tech — she's asked me to bring back a recommendation by month end"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Decision Criteria</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We need it to work inside Word, plug into SharePoint, and our security team will want to know exactly what happens to the data"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Decision Process</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Security review first, then a two-week pilot with Legal Ops, then it goes to procurement"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Identify Pain</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We missed a liability cap in a vendor contract last quarter because it slipped through a rushed review"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Champion</span><span class="good-tag">GREEN</span></div><div class="good-quote">"I'll walk our Senior Legal Counsel through this tomorrow — she's been pushing for something like this for a year"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Security and Anonymisation Wedge</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Before anything touches a model, LegalFly strips it of anything identifying — the data's already anonymised by the time it's processed, not just covered by a contract clause"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Competitive Positioning</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Copilot's a great generalist tool, but it's not trained on legal review workflows or your own playbook — and it's not anonymising anything before it processes it"</div></div>
+        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">ICP and Qualification Fit</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We're an in-house team of six across two jurisdictions, all on Microsoft — this is exactly the setup LegalFly's built for"</div></div>
       </div>
 
       <div class="good-fw-block" data-good-fw="Custom">
@@ -927,7 +940,7 @@ async function runEval(){
 }
 
 function getFwFields(){
-  var m={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
+  var m={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff'],LegalFly:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion','Security and Anonymisation Wedge','Competitive Positioning','ICP and Qualification Fit']};
   return m[fw]||[];
 }
 

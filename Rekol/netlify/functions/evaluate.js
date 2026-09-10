@@ -106,17 +106,67 @@ exports.handler = async function (event) {
     const stageLine = dealStage ? 'Deal stage: ' + dealStage + ' — factor this into your coaching, e.g. "Given this is a ' + dealStage.toLowerCase() + '-stage deal, the AE should have been focused on..."' : ''
 
     const FW_FIELDS = {
-      MEDDIC: ['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],
-      BANT:   ['Budget','Authority','Need','Timeline'],
-      SPIN:   ['Situation','Problem','Implication','Need-Payoff'],
+      MEDDIC:   ['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],
+      BANT:     ['Budget','Authority','Need','Timeline'],
+      SPIN:     ['Situation','Problem','Implication','Need-Payoff'],
+      LegalFly: ['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion','Security and Anonymisation Wedge','Competitive Positioning','ICP and Qualification Fit'],
     }
     const FW_DESC = {
       MEDDIC: 'Metrics (quantifiable ROI/impact), Economic Buyer (ultimate decision maker identified and engaged), Decision Criteria (evaluation criteria mapped), Decision Process (buying steps and timeline understood), Identify Pain (critical business pain uncovered), Champion (internal advocate identified)',
       BANT:   'Budget (confirmed budget exists), Authority (speaking with or have access to decision maker), Need (genuine business need established), Timeline (purchase timeline agreed or realistic)',
       SPIN:   'Situation (context and background gathered), Problem (core problems identified), Implication (downstream consequences explored), Need-Payoff (value of solving the problem articulated)',
+      // Verbatim from the LegalFly methodology doc (context block + the
+      // MEDDIC backbone's six pillars, adapted to LegalFly + the three
+      // always-on LegalFly-layer sections). Long by design — full mode
+      // needs the complete rubric to score and justify all nine sections.
+      LegalFly: `LegalFly is MEDDIC tuned to how LegalFly sells: the six MEDDIC pillars plus a LegalFly-specific layer of three sections. Score all nine sections listed below.
+
+Context the scorer must use:
+LEGALFLY is an agentic AI workspace built specifically for in-house corporate legal, compliance and procurement teams. Law firms are inbound only, not a direct-sales target. It provides more than a dozen specialised legal agents rather than a single chat tool. The main agents: Review (single-contract redlining against the client's own playbook, inside Microsoft Word), Multi Review (the same playbook review across hundreds of contracts at once, for due diligence, procurement and compliance), Drafting (turning signed contracts into smart templates), Discovery (sourced legal research and questions against the client's own documents), Legal Radar (regulatory monitoring by jurisdiction) and Translation. Native Microsoft Word and SharePoint integration, and purchasable via Microsoft Azure credits.
+
+Unique selling points to reward when a rep uses them well: built for in-house teams rather than law firms; the only legal AI that fully anonymises all data before processing, with an on-premise option; LLM-agnostic, always routing to the best model; a complete agentic workspace rather than a point solution; and legally-trained AI that cites its sources to reduce hallucination. Treat security certifications (ISO 27001, SOC 2 Type II, GDPR) as table stakes. Anonymisation before processing is the structural wedge.
+
+Proof points a strong rep can reference: contract review cut from about two hours to fifteen minutes, review time reduced by 50 to 80 percent, roughly 2.5 times faster review, an hour or more saved per research query. Customer stories include Agristo, ECS, Duvel and Adeera.
+
+ICP: corporate in-house legal, compliance and procurement teams with complex, recurring legal workloads and an appetite for AI. Priority verticals: Insurance and Banking, Technology, Manufacturing. Segment: Enterprise. Minimum size: 200+ employees with at least a three-person legal team. Direct-sales geographies: Belgium, UK, Netherlands, Germany, Luxembourg, Switzerland, Saudi Arabia and UAE, with the US handled opportunistically. LEGALFLY is industry-agnostic overall, so fit is really about pain, AI maturity and team size. Primary buyers: General Counsel, Chief Legal Officer, Head of Legal, Legal Director. Secondary: Head of Procurement. A CIO, IT or Security lead is a common gatekeeper, and operational champions are usually Senior Legal Counsel or Legal Ops. Disqualifiers: a single part-time counsel, single-jurisdiction with low volume, or a hard budget freeze.
+
+Industry nuance to weigh when judging pain and value. In Banking, the pain is high-volume NDAs, long multi-turn contracts and multi-stakeholder approvals, and the value is scaling legal capacity without headcount; deal-cycle-time language does not resonate because banks track risk, not speed. In Manufacturing and Transportation, the pain is multi-jurisdiction operations, slim margins and mounting regulation such as CSDDD, and cost efficiency resonates strongly. In Technology, the pain is legal being a blocker on fast-moving deals (a five-day review SLA), DPAs and evolving AI and data regulation such as DORA, and reducing external-counsel spend does not resonate.
+
+Known selling rules to reward or penalise against:
+- Ask about pain, do not assert it. Asserting high contract volume at a low-volume prospect is a known failure. Reward confirmed pain, penalise assumed pain.
+- Balance talk time. The best LEGALFLY calls are conversations, not monologues, and prospect attention drops after 60 to 90 seconds of uninterrupted talking. Reward consultative, open-question discovery and penalise a rep who pitches over the prospect.
+- Measure AI maturity. A strong discovery finds out whether the team already uses ChatGPT or Copilot and what concerns came up, because that shapes the security and accuracy positioning.
+- On competitors, acknowledge honestly, ask a question that surfaces a real gap, then bridge to a differentiator, and never bash. Competitors fall into generalist AI (Copilot, ChatGPT), CLM or CMS (Icertis, Ironclad, Docusign CLM, ContractPodAI) and specialist legal AI (Luminance, Henchman, Definely, Wordsmith). Make anonymisation part of every competitive conversation. For Copilot, the Azure-credits reframe removes budget friction. Never claim a CLM cannot review against a playbook, since many now can; the real gaps are research, regulatory monitoring and anonymisation.
+- The sophisticated data-privacy rebuttal is contractual control versus technical control: an enterprise AI agreement stops training on the data, but the personal data still leaves the environment; anonymising before processing removes it from scope.
+
+MEDDIC pillars (backbone), scored against the LegalFly context above:
+Metrics: Did the rep quantify the pain in business terms LEGALFLY can move (review time, backlog or volume, hours lost, external-counsel spend, procurement cycle time)? Green: a specific figure tied to a LEGALFLY outcome. Red: no attempt to size the problem.
+Economic Buyer: Did the rep identify and ideally confirm who signs (GC, CLO, Head of Legal, Legal Director) and flag the security gatekeeper where relevant? Green: named the decision maker and their role. Red: engaged someone with no buying power and never found who decides.
+Decision Criteria: Did the rep surface what the prospect will judge a tool on, especially where LEGALFLY is strong (anonymisation, research depth, workflow automation, Word and SharePoint fit, playbook customisation)? Green: explicit criteria captured. Red: none uncovered.
+Decision Process: Did the rep map how the decision gets made and by when (security review, procurement, pilot, timeline) and secure a next step? Green: clear process and a concrete next step. Red: no process, no next step.
+Identify Pain: Did the rep surface a real, confirmed LEGALFLY-relevant pain mapped to a use case? Green: a concrete pain the prospect confirmed. Red: pain asserted not confirmed, or a clear disqualifier.
+Champion: Did the rep find or start to develop an internal advocate (often Senior Legal Counsel or Legal Ops)? Green: a likely champion and an action they will take internally. Red: a single contact with no path inward.
+
+LegalFly layer (always on, score every call regardless of backbone):
+Security and Anonymisation Wedge: Did the rep position LEGALFLY's core differentiator correctly? Green: raised anonymisation before processing as an architectural fact, not a policy promise, treated certifications as parity, and, if the prospect argued their enterprise AI agreement already covers privacy, landed the contractual-versus-technical-control rebuttal. Amber: mentioned security but generically, or leaned on certifications instead of anonymisation. Red: missed the wedge with a security-conscious buyer, got into a certifications contest, or overclaimed.
+Competitive Positioning: If a competitor came up, did the rep acknowledge honestly, ask a gap-revealing question, and bridge to a differentiator without bashing? Green: handled to playbook. Amber: handled but flat, or leaned on a weak or false gap. Red: attacked the competitor, claimed a false gap (for example that a CLM cannot review against a playbook), or fought on lost ground. If no competitor arose, score amber and note it as unprobed.
+ICP and Qualification Fit: Did the rep qualify against the ICP and screen for disqualifiers? Green: established in-house (not a law firm), industry, geography, company and legal-team size, dedicated legal leadership, multi-jurisdiction and Microsoft signals, and either advanced a good fit or disqualified a poor one with evidence. Amber: partial qualification. Red: pursued a clear disqualifier or never established fit.
+
+Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. Treat the LegalFly layer as the mark of whether the rep is selling LegalFly well rather than just following a method. A call can be strong on the backbone yet weak on the wedge, and that gap is exactly the coaching a LegalFly manager wants to see. Always cite the specific line that justifies each score, and where a section is red, give one concrete, LegalFly-specific coaching action.`,
     }
 
-    let sections, fwDesc
+    // LegalFly's full methodology above is long by design for full mode,
+    // but quick mode only needs enough context to produce an honest
+    // overall score + 2-3 sentence summary — sending the entire rubric
+    // there would triple that call's input tokens for no benefit and
+    // work against the concurrent-call token-volume budget (see
+    // postToolCall's 429 handling above). Every other framework's
+    // description is already short enough to use as-is for both modes.
+    const FW_DESC_QUICK = {
+      LegalFly: 'LegalFly is an agentic AI workspace for in-house corporate legal, compliance and procurement teams (not law firms) — contract redlining, multi-contract review, drafting, legal research, and regulatory monitoring, native to Microsoft Word/SharePoint, purchasable via Azure credits. Its structural differentiator is full anonymisation of data before processing, not just security certifications (which are table stakes). ICP: enterprise accounts (200+ employees, 3+ person legal team), priority verticals Insurance/Banking, Technology, Manufacturing; buyers are GC/CLO/Head of Legal/Legal Director. Score this call on a MEDDIC basis (metrics, economic buyer, decision criteria, decision process, pain, champion) and on whether the rep positioned the anonymisation wedge and qualified the prospect against this ICP.',
+    }
+
+    let sections, fwDesc, fwDescQuick
     if (framework === 'Custom') {
       sections = customFields.map(f => typeof f === 'object' ? f.name : f)
       const fieldLines = customFields.map((f, i) => {
@@ -124,9 +174,11 @@ exports.handler = async function (event) {
         return (i+1) + '. ' + f
       }).join('\n')
       fwDesc = 'Custom framework:\n' + fieldLines
+      fwDescQuick = fwDesc
     } else {
       sections = FW_FIELDS[framework]
       fwDesc = framework + ':\n' + FW_DESC[framework]
+      fwDescQuick = FW_DESC_QUICK[framework] ? (framework + ' (context): ' + FW_DESC_QUICK[framework]) : fwDesc
     }
 
     // QUICK MODE — just score + summary, fast response
@@ -134,7 +186,7 @@ exports.handler = async function (event) {
       const quickPrompt = [
         'You are an expert enterprise sales coach. Analyse this call transcript and call submit_quick_eval with your assessment.',
         '',
-        'Framework: ' + fwDesc,
+        'Framework: ' + fwDescQuick,
         dealName ? 'Deal: ' + dealName : '',
         persona ? 'People on the call: ' + persona : '',
         stageLine,

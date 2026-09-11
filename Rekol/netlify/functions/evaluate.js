@@ -372,9 +372,17 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
     // reproduce that. Rather than save a partial or duplicated record,
     // treat an incomplete merge as a failed eval so the AE re-runs instead
     // of getting a silently wrong one.
+    // Defensive: the tool schema declares `sections` as an array, but that
+    // describes intent, not a runtime guarantee — a malformed generation
+    // could still hand back something else (null, a string, an object).
+    // Treat anything that isn't actually an array as "this group
+    // contributed nothing" rather than crashing .forEach on it; the
+    // completeness guard below then does its job and surfaces a clear
+    // "missing section(s)" 502 instead of an opaque 500.
     const byName = {}
     results.forEach(r => {
-      ;(r.result.sections || []).forEach(s => {
+      const secs = r.result && Array.isArray(r.result.sections) ? r.result.sections : []
+      secs.forEach(s => {
         if (s && s.name && !byName[s.name]) byName[s.name] = s
       })
     })
@@ -390,9 +398,10 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
       }
     }
 
+    const lastNextSteps = results[results.length - 1].result.next_steps
     const merged = {
       sections: mergedSections,
-      next_steps: results[results.length - 1].result.next_steps || [],
+      next_steps: Array.isArray(lastNextSteps) ? lastNextSteps : [],
     }
 
     return {

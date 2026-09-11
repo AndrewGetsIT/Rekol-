@@ -309,13 +309,31 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
       'Be specific and honest' + (includeNextSteps ? ', and include three concrete next steps for the deal overall' : '') + '. If something was not in the transcript, say so clearly.'
     ].filter(Boolean).join('\n')
 
-    // Only split when there's more than one section to split — a
-    // single-field custom framework just runs one call as before.
-    const mid = Math.ceil(sections.length / 2)
-    const groupA = sections.length > 1 ? sections.slice(0, mid) : sections
-    const groupB = sections.length > 1 ? sections.slice(mid) : []
+    // Split into N groups of at most 3 sections each, as evenly as
+    // possible, rather than always exactly 2. Real production timing on
+    // LegalFly (9 sections, a much longer framework description than
+    // MEDDIC/BANT/SPIN) showed why a fixed 2-way split doesn't generalise:
+    // 5+4 measured 25.7s, 27.1s, and one outright 504 at 31s across three
+    // runs — group A's 5-section completion plus LegalFly's ~2000-token
+    // context was intermittently blowing the 26s Netlify ceiling. Capping
+    // each group at 3 sections keeps every call's output length (and thus
+    // the slowest call's duration) roughly constant regardless of how many
+    // sections the framework has.
+    //
+    // This exactly reproduces every existing framework's current split —
+    // MEDDIC (6) and BANT/SPIN (4) already land on groups of 3 or 2 under
+    // this rule, so their behaviour is unchanged. Only frameworks with
+    // more than 6 sections (LegalFly's 9) actually get a 3rd group.
+    const CHUNK_SIZE = 3
+    const numGroups = Math.max(1, Math.ceil(sections.length / CHUNK_SIZE))
+    const groupSize = Math.ceil(sections.length / numGroups)
+    const groups = []
+    for (let i = 0; i < numGroups; i++) {
+      const g = sections.slice(i * groupSize, (i + 1) * groupSize)
+      if (g.length) groups.push(g)
+    }
 
-    console.log('Full mode — framework:', framework, 'transcript length:', transcript.length, 'split:', groupA.length, '+', groupB.length)
+    console.log('Full mode — framework:', framework, 'transcript length:', transcript.length, 'split:', groups.map(g => g.length).join('+'))
 
     const sectionTool = (secs, includeNextSteps) => ({
       name: 'submit_section_eval',
@@ -323,52 +341,43 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
       input_schema: sectionToolSchema(secs, includeNextSteps),
     })
 
-    const calls = [
-      postToolCall({
+    // Only the last group is asked for next_steps — one "deal overall"
+    // list, not one per group.
+    const calls = groups.map((secs, i) => {
+      const includeNextSteps = i === groups.length - 1
+      return postToolCall({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 4000,
-        tools: [sectionTool(groupA, groupB.length === 0)],
+        tools: [sectionTool(secs, includeNextSteps)],
         tool_choice: { type: 'tool', name: 'submit_section_eval' },
-        messages: [{ role: 'user', content: buildPrompt(groupA, groupB.length === 0) }],
-      }, 'Full mode (A)', startTime),
-    ]
-    if (groupB.length) {
-      calls.push(postToolCall({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
-        tools: [sectionTool(groupB, true)],
-        tool_choice: { type: 'tool', name: 'submit_section_eval' },
-        messages: [{ role: 'user', content: buildPrompt(groupB, true) }],
-      }, 'Full mode (B)', startTime))
-    }
-    const [resultA, resultB] = await Promise.all(calls)
+        messages: [{ role: 'user', content: buildPrompt(secs, includeNextSteps) }],
+      }, 'Full mode (group ' + (i + 1) + '/' + groups.length + ')', startTime)
+    })
+    const results = await Promise.all(calls)
 
     // Discard the transcript now that the API calls are done — it must not
     // be held in memory any longer than the request needs it for.
     transcript = null
 
-    if (resultA.error || (resultB && resultB.error)) {
-      const errors = [resultA.error, resultB && resultB.error].filter(Boolean)
-      return { statusCode: 502, body: JSON.stringify({ error: errors.join(' | ') }) }
+    const callErrors = results.map(r => r.error).filter(Boolean)
+    if (callErrors.length) {
+      return { statusCode: 502, body: JSON.stringify({ error: callErrors.join(' | ') }) }
     }
 
     // Merge into canonical framework order, deduping by name (first
     // occurrence wins) — this is the second half of the fix: even with the
-    // schema enum above, don't trust the two halves to be well-formed.
-    // Prospect B's eval returned Metrics/Economic Buyer/Decision Criteria
-    // twice and silently dropped Decision Process/Identify Pain/Champion;
-    // a blind concat would reproduce that. Rather than save a partial or
-    // duplicated record, treat an incomplete merge as a failed eval so the
-    // AE re-runs instead of getting a silently wrong one.
+    // schema enum above, don't trust every group to be well-formed.
+    // Prospect B's eval once returned Metrics/Economic Buyer/Decision
+    // Criteria twice and silently dropped the rest; a blind concat would
+    // reproduce that. Rather than save a partial or duplicated record,
+    // treat an incomplete merge as a failed eval so the AE re-runs instead
+    // of getting a silently wrong one.
     const byName = {}
-    const collect = (result) => {
-      if (!result) return
-      ;(result.sections || []).forEach(s => {
+    results.forEach(r => {
+      ;(r.result.sections || []).forEach(s => {
         if (s && s.name && !byName[s.name]) byName[s.name] = s
       })
-    }
-    collect(resultA.result)
-    collect(resultB && resultB.result)
+    })
 
     const mergedSections = sections.map(name => byName[name]).filter(Boolean)
 
@@ -383,7 +392,7 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
 
     const merged = {
       sections: mergedSections,
-      next_steps: (resultB ? resultB.result : resultA.result).next_steps || [],
+      next_steps: results[results.length - 1].result.next_steps || [],
     }
 
     return {

@@ -54,7 +54,18 @@ function post(data) {
 // a human-readable string that includes Anthropic's real status/body so
 // failures are visible in the response itself, not just in server logs we
 // have no way to read from here.
-async function postToolCall(payload, label, startTime) {
+// expectedSectionCount is optional (quick mode's tool has no `sections`
+// field at all) — when given, a result whose `sections` array is missing,
+// not actually an array, or the wrong length is treated the same as
+// malformed JSON and gets the same retry-once treatment. Without this, a
+// tool call that technically "succeeds" (a valid object, just with an
+// empty or truncated sections array — e.g. cut short near max_tokens)
+// would sail past the only check that used to exist here, and the
+// incompleteness would only surface much later at the merge/completeness
+// guard, by which point there's no time budget left to retry just that
+// one call — the whole eval fails instead of quietly retrying the one
+// piece that needed it.
+async function postToolCall(payload, label, startTime, expectedSectionCount) {
   let attempt = 0
   while (true) {
     attempt++
@@ -84,6 +95,12 @@ async function postToolCall(payload, label, startTime) {
       const toolUse = (data.content || []).find(c => c.type === 'tool_use')
       if (!toolUse || typeof toolUse.input !== 'object' || toolUse.input === null) {
         throw new Error('No tool_use result in response (stop_reason: ' + data.stop_reason + ')')
+      }
+      if (expectedSectionCount !== undefined) {
+        const secs = toolUse.input.sections
+        if (!Array.isArray(secs) || secs.length !== expectedSectionCount) {
+          throw new Error('Expected ' + expectedSectionCount + ' sections, got ' + (Array.isArray(secs) ? secs.length : typeof secs) + ' (stop_reason: ' + data.stop_reason + ')')
+        }
       }
       return { result: toolUse.input }
     } catch (e) {
@@ -342,16 +359,22 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
     })
 
     // Only the last group is asked for next_steps — one "deal overall"
-    // list, not one per group.
+    // list, not one per group. max_tokens raised from 4000 to 5000: real
+    // production testing on LegalFly (content-rich sections — proof
+    // points, named competitors, rebuttals — genuinely need more room
+    // than MEDDIC's terser style) intermittently returned a truncated/
+    // empty sections array under the old ceiling. The extra headroom only
+    // matters when a call actually needs it; it doesn't add latency to
+    // calls that don't.
     const calls = groups.map((secs, i) => {
       const includeNextSteps = i === groups.length - 1
       return postToolCall({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 4000,
+        max_tokens: 5000,
         tools: [sectionTool(secs, includeNextSteps)],
         tool_choice: { type: 'tool', name: 'submit_section_eval' },
         messages: [{ role: 'user', content: buildPrompt(secs, includeNextSteps) }],
-      }, 'Full mode (group ' + (i + 1) + '/' + groups.length + ')', startTime)
+      }, 'Full mode (group ' + (i + 1) + '/' + groups.length + ')', startTime, secs.length)
     })
     const results = await Promise.all(calls)
 

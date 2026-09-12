@@ -49,6 +49,20 @@ function post(data) {
 // with tool use, but a fresh generation is cheap insurance against hard
 // 502ing on the first bad attempt.
 //
+// That retry is time-budget-aware, not just attempt-count-aware: retrying
+// is only worth it if there's plausibly enough of the ~26s Netlify ceiling
+// left for the retry to actually finish. A full-mode group call routinely
+// takes 10-25s on its own, so a flat "retry if elapsed < 4s" threshold
+// (fine for quick mode's few-second calls) is already blown by the time
+// almost any full-mode call reports back — that retry was effectively
+// dead for full mode. RETRY_BUDGET_MS/MIN_REMAINING_FOR_RETRY_MS below
+// replace that with "only retry if at least ~10s of a ~24s safety budget
+// remains" — comfortably enough for another attempt of a single group,
+// while guaranteeing we never gamble the whole request past the ceiling.
+//
+const RETRY_BUDGET_MS = 24000
+const MIN_REMAINING_FOR_RETRY_MS = 10000
+//
 // Returns { result } on success (already a parsed object — no further
 // parsing needed by the caller), or { error, status } otherwise — error is
 // a human-readable string that includes Anthropic's real status/body so
@@ -106,10 +120,13 @@ async function postToolCall(payload, label, startTime, expectedSectionCount) {
     } catch (e) {
       console.error(label + ' malformed tool response (attempt ' + attempt + '):', e.message)
       const elapsed = Date.now() - startTime
-      if (attempt >= 2 || elapsed >= 4000) {
+      const remaining = RETRY_BUDGET_MS - elapsed
+      if (attempt >= 2 || remaining < MIN_REMAINING_FOR_RETRY_MS) {
+        console.error(label + ' — not retrying (attempt ' + attempt + ', ' + remaining + 'ms left of budget)')
         return { error: label + ' — returned no valid structured result: ' + e.message, status: response.status }
       }
-      // one retry allowed — still within the time budget, loop again
+      console.error(label + ' — retrying (' + remaining + 'ms left of budget)')
+      // one retry allowed — still enough of the time budget left, loop again
     }
   }
 }
@@ -285,6 +302,8 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
           type: 'array',
           minItems: secs.length,
           maxItems: secs.length,
+          uniqueItems: true,
+          description: 'MUST be a JSON array of exactly ' + secs.length + ' section object' + (secs.length === 1 ? '' : 's') + ' — never a string, never an object, never any other length. One object per section name listed below, no more and no fewer.',
           items: {
             type: 'object',
             properties: {
@@ -322,6 +341,7 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
       sections.length > secs.length
         ? 'Only evaluate these specific sections of the framework — a separate pass covers the rest: ' + secs.join(', ')
         : 'Evaluate these sections: ' + secs.join(', '),
+      'Your submit_section_eval call must include exactly ' + secs.length + ' entries in the sections array — one per section listed above, no more and no fewer — and sections must be a JSON array, not a string.',
       '',
       'Be specific and honest' + (includeNextSteps ? ', and include three concrete next steps for the deal overall' : '') + '. If something was not in the transcript, say so clearly.'
     ].filter(Boolean).join('\n')

@@ -52,16 +52,24 @@ function post(data) {
 // That retry is time-budget-aware, not just attempt-count-aware: retrying
 // is only worth it if there's plausibly enough of the ~26s Netlify ceiling
 // left for the retry to actually finish. A full-mode group call routinely
-// takes 10-25s on its own, so a flat "retry if elapsed < 4s" threshold
-// (fine for quick mode's few-second calls) is already blown by the time
-// almost any full-mode call reports back — that retry was effectively
-// dead for full mode. RETRY_BUDGET_MS/MIN_REMAINING_FOR_RETRY_MS below
-// replace that with "only retry if at least ~10s of a ~24s safety budget
-// remains" — comfortably enough for another attempt of a single group,
-// while guaranteeing we never gamble the whole request past the ceiling.
+// takes 10-25s on its own — real production timing showed individual
+// group calls occasionally running as long as ~25-28s even on their FIRST
+// attempt, so a retry can be just as slow as the call it's replacing.
+// MIN_REMAINING_FOR_RETRY_MS is set assuming the retry could itself take
+// up to ~20s in the worst case: only retry if that leaves the total
+// safely under RETRY_BUDGET_MS. An earlier, looser floor (10s) still let
+// a real request hit 29.9s once a retry that itself ran long was added on
+// top of an already-slow first attempt — this floor is deliberately
+// conservative to make that mathematically impossible: elapsed-at-failure
+// must be small (the failure has to show up fast) for a retry to be
+// attempted at all. That means most "took a while, then came back
+// malformed" failures won't get an in-function retry — that's intentional
+// and safe; the existing client-side 502 retry (untouched) is the right
+// layer for those, since it restarts with a completely fresh time budget
+// instead of squeezing a retry into whatever's left of this one.
 //
 const RETRY_BUDGET_MS = 24000
-const MIN_REMAINING_FOR_RETRY_MS = 10000
+const MIN_REMAINING_FOR_RETRY_MS = 20000
 //
 // Returns { result } on success (already a parsed object — no further
 // parsing needed by the caller), or { error, status } otherwise — error is
@@ -341,7 +349,7 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
       sections.length > secs.length
         ? 'Only evaluate these specific sections of the framework — a separate pass covers the rest: ' + secs.join(', ')
         : 'Evaluate these sections: ' + secs.join(', '),
-      'Your submit_section_eval call must include exactly ' + secs.length + ' entries in the sections array — one per section listed above, no more and no fewer — and sections must be a JSON array, not a string.',
+      'Your submit_section_eval call must include exactly ' + secs.length + ' entries in the sections array — one per section listed above, no more and no fewer. The `sections` field itself must be a real array value, the way the tool schema defines it — never a string, and never a JSON-encoded/stringified version of the array.',
       '',
       'Be specific and honest' + (includeNextSteps ? ', and include three concrete next steps for the deal overall' : '') + '. If something was not in the transcript, say so clearly.'
     ].filter(Boolean).join('\n')

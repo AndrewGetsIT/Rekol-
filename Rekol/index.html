@@ -1430,7 +1430,8 @@ function scoreColor(score){
 // bars — managers should be able to see the evidence behind a score, not
 // just trust the number.
 function breakdownRowHtml(s,extraHtml){
-  var row='<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'
+  var spark=(s.trend&&s.trend.length>=2)?buildSparklineSVG(s.trend):''
+  var row='<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div>'+spark+'<div class="breakdown-sc">'+s.avgScore+'</div></div>'
   var quote=s.exampleQuote?'<div class="breakdown-quote">&ldquo;'+s.exampleQuote+'&rdquo;</div>':''
   return '<div class="breakdown-item">'+row+quote+(extraHtml||'')+'</div>'
 }
@@ -1896,6 +1897,26 @@ function buildChartSVG(points){
     return '<text x="'+xAt(i)+'" y="'+(h-6)+'" text-anchor="middle" font-size="9" fill="var(--tx3)" font-family="Sora,sans-serif">'+p.label+'</text>';
   }).join('');
   return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" style="display:block;overflow:visible">'+grid+'<polyline points="'+linePts+'" fill="none" stroke="var(--ac)" stroke-width="2"/>'+circles+labels+'</svg>';
+}
+
+// Compact section-level trend line — same technique as buildChartSVG
+// (score 0-100 mapped to a polyline) but tiny and label-free, meant to
+// sit inline next to a section's score. Takes a plain array of scores in
+// chronological order, not {score,label} objects. Returns '' if there
+// isn't enough data to draw a line (also acts as the "not enough data"
+// signal for callers).
+function buildSparklineSVG(scores){
+  if(!scores||scores.length<2)return ''
+  var w=90,h=26,padY=4,innerH=h-padY*2,n=scores.length
+  var xStep=innerH>=0?w/(n-1):0
+  function xAt(i){return i*xStep}
+  function yAt(score){return padY+innerH-(score/100*innerH)}
+  var linePts=scores.map(function(s,i){return xAt(i)+','+yAt(s)}).join(' ')
+  var lastScore=scores[scores.length-1]
+  return '<svg viewBox="0 0 '+w+' '+h+'" width="'+w+'" height="'+h+'" style="display:block;flex-shrink:0">'
+    +'<polyline points="'+linePts+'" fill="none" stroke="var(--ac)" stroke-width="1.5"/>'
+    +'<circle cx="'+xAt(n-1)+'" cy="'+yAt(lastScore)+'" r="2.5" fill="var(--ac)"/>'
+    +'</svg>'
 }
 
 // Same coercion as the server-side fix (team-dashboard.js / ae-drilldown.js)

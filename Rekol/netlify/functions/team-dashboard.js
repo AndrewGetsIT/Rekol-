@@ -245,17 +245,35 @@ exports.handler = async function (event) {
     // no standard-framework names collide today, but a custom field can
     // be named anything, including something that collides with a
     // standard section name and means something completely different.
+    // Section-level trend, team-wide: bucket the selected range into up
+    // to 6 equal-width windows and average the team's score per section
+    // within each. Unlike the AE drilldown's raw per-eval trend, this is
+    // many reps' individual evals interleaved — a raw chronological line
+    // would just be noise from whoever happened to submit when, not a
+    // real signal of whether the team is improving. Bucketing smooths
+    // that into "was this section better or worse earlier in the period".
+    const TREND_BUCKETS = 6
+    const bucketSpanMs = Math.max(1, Math.ceil(range / TREND_BUCKETS)) * 24 * 60 * 60 * 1000
+    const rangeStartMs = Date.now() - range * 24 * 60 * 60 * 1000
+    function bucketIndexFor(dateStr) {
+      const idx = Math.floor((new Date(dateStr).getTime() - rangeStartMs) / bucketSpanMs)
+      return Math.max(0, Math.min(TREND_BUCKETS - 1, idx))
+    }
+
     const sectionAggByFw = {}
     strippedEvals.forEach(e => {
       sectionAggByFw[e.fw] = sectionAggByFw[e.fw] || { evalCount: 0, sections: {} }
       sectionAggByFw[e.fw].evalCount++
+      const bIdx = bucketIndexFor(e.created_at)
       e.sections.forEach(s => {
         if (!s.name || s.score === null) return
         const bucket = sectionAggByFw[e.fw].sections
-        bucket[s.name] = bucket[s.name] || { sum: 0, count: 0, red: 0, exampleQuote: null }
+        bucket[s.name] = bucket[s.name] || { sum: 0, count: 0, red: 0, exampleQuote: null, trendBuckets: Array.from({ length: TREND_BUCKETS }, () => ({ sum: 0, count: 0 })) }
         bucket[s.name].sum += s.score
         bucket[s.name].count++
         if (s.status === 'red') bucket[s.name].red++
+        bucket[s.name].trendBuckets[bIdx].sum += s.score
+        bucket[s.name].trendBuckets[bIdx].count++
         // strippedEvals is already ordered oldest-to-newest (the Supabase
         // query is order=created_at.asc), so overwriting on every match
         // naturally leaves the MOST RECENT eval's quote here by the time
@@ -269,12 +287,16 @@ exports.handler = async function (event) {
       evalCount: sectionAggByFw[fw].evalCount,
       sections: Object.keys(sectionAggByFw[fw].sections).map(name => {
         const agg = sectionAggByFw[fw].sections[name]
+        const trend = agg.trendBuckets
+          .map(b => b.count ? Math.round(b.sum / b.count) : null)
+          .filter(v => v !== null)
         return {
           name: name,
           avgScore: Math.round(agg.sum / agg.count),
           redCount: agg.red,
           totalCount: agg.count,
           exampleQuote: agg.exampleQuote,
+          trend: trend,
         }
       }).sort((a, b) => a.avgScore - b.avgScore),
     })).sort((a, b) => b.evalCount - a.evalCount)

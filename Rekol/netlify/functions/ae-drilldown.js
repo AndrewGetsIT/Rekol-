@@ -232,10 +232,24 @@ exports.handler = async function (event) {
         if (quote) sectionAgg[s.name].exampleQuote = quote
       }
     }))
+
+    // Per-section trend: this rep's own raw chronological scores for each
+    // section, oldest to newest. Unlike the team-wide version in
+    // team-dashboard.js, this doesn't need bucketing/averaging — it's
+    // already one person's own trajectory, not many reps' evals
+    // interleaved, so every real data point is worth showing as-is.
+    const sectionTrendMap = {}
+    chronological.forEach(e => e.sections.forEach(s => {
+      if (!s.name || s.score === null) return
+      sectionTrendMap[s.name] = sectionTrendMap[s.name] || []
+      sectionTrendMap[s.name].push(s.score)
+    }))
+
     const sectionAverages = Object.keys(sectionAgg).map(name => ({
       name: name,
       avgScore: Math.round(sectionAgg[name].sum / sectionAgg[name].count),
       exampleQuote: sectionAgg[name].exampleQuote,
+      trend: sectionTrendMap[name] || [],
     }))
     const strengths = sectionAverages.slice().sort((a, b) => b.avgScore - a.avgScore).slice(0, 2)
     const strongNames = strengths.map(s => s.name)

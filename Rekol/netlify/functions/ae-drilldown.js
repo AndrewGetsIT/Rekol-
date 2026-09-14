@@ -186,7 +186,7 @@ exports.handler = async function (event) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           rep: { userId: aeUserId, name: repName, evalCount: 0, avgScore: null, trend: [], trendDelta: null, frameworksUsed: [] },
-          strengths: [], developAreas: [], evalHistory: [], coachingSummary: null,
+          strengths: [], developAreas: [], evalHistory: [], coachingSummary: null, nextBestAction: null,
         }),
       }
     }
@@ -221,15 +221,18 @@ exports.handler = async function (event) {
     const sectionAgg = {}
     evals.forEach(e => e.sections.forEach(s => {
       if (!s.name || s.score === null) return
-      sectionAgg[s.name] = sectionAgg[s.name] || { sum: 0, count: 0, exampleQuote: null }
+      sectionAgg[s.name] = sectionAgg[s.name] || { sum: 0, count: 0, exampleQuote: null, latestCoaching: null }
       sectionAgg[s.name].sum += s.score
       sectionAgg[s.name].count++
       // evals is already ordered newest-first (the Supabase query is
       // order=created_at.desc), so only setting this the first time we
-      // see a section leaves the MOST RECENT eval's quote here.
+      // see a section leaves the MOST RECENT eval's quote/coaching here.
       if (!sectionAgg[s.name].exampleQuote) {
         const quote = excerptQuote(s.covered)
         if (quote) sectionAgg[s.name].exampleQuote = quote
+      }
+      if (!sectionAgg[s.name].latestCoaching && s.coaching) {
+        sectionAgg[s.name].latestCoaching = excerptQuote(s.coaching)
       }
     }))
 
@@ -257,6 +260,19 @@ exports.handler = async function (event) {
       .filter(s => strongNames.indexOf(s.name) === -1)
       .sort((a, b) => a.avgScore - b.avgScore)
       .slice(0, 2)
+
+    // Next-best coaching action — rules-based, no extra AI call: just the
+    // single lowest-scoring section, with the actual coaching text the
+    // model already wrote for it on the most recent eval that covered it.
+    // Computed independently from developAreas (not developAreas[0]) so
+    // it's always the true single minimum, not affected by developAreas'
+    // strengths-exclusion filter in the rare case of very few sections.
+    const weakestOverall = sectionAverages.length
+      ? sectionAverages.slice().sort((a, b) => a.avgScore - b.avgScore)[0]
+      : null
+    const nextBestAction = (weakestOverall && sectionAgg[weakestOverall.name].latestCoaching)
+      ? { section: weakestOverall.name, avgScore: weakestOverall.avgScore, coaching: sectionAgg[weakestOverall.name].latestCoaching }
+      : null
 
     // 3 + 5. Evaluation history, each carrying its full section detail
     // (for click-through to the full eval renderer) and its rules-based
@@ -331,6 +347,7 @@ exports.handler = async function (event) {
         developAreas: developAreas,
         evalHistory: evalHistory,
         coachingSummary: coachingSummary,
+        nextBestAction: nextBestAction,
       }),
     }
 

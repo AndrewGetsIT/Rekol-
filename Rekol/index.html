@@ -1682,6 +1682,13 @@ function renderAeProfilePanel(data){
     html += '<div class="chart-card" style="margin-bottom:20px">'+buildChartSVG(chartPoints)+'</div>'
   }
 
+  // 4. Next-best coaching action — rules-based, no extra AI call: the
+  // single lowest-scoring section, paired with the actual coaching text
+  // already written for it on the most recent eval that covered it.
+  if(data.nextBestAction){
+    html += '<div class="card" style="margin-bottom:20px"><div class="card-l">Next coaching focus — '+data.nextBestAction.section+' <span style="color:'+scoreColor(data.nextBestAction.avgScore)+';font-family:\'JetBrains Mono\',monospace;font-size:12px">(avg '+data.nextBestAction.avgScore+')</span></div><div class="card-t">'+data.nextBestAction.coaching+'</div></div>'
+  }
+
   // 2. Strengths & development areas — rules-based, top/bottom 2 sections
   if(data.strengths.length || data.developAreas.length){
     html += '<div class="fw-breakdown-h">Strengths &amp; development areas</div>'

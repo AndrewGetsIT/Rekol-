@@ -435,7 +435,10 @@
     <div class="field-mb">
       <div class="field-label" style="justify-content:space-between;width:100%">
         Call transcript
-        <button class="btn-skip" style="font-size:11px;text-transform:none;letter-spacing:0;color:var(--ac)" onclick="fillDemo()">Try a demo transcript →</button>
+        <span style="display:flex;gap:14px">
+          <button class="btn-skip" id="gong-import-trigger" style="font-size:11px;text-transform:none;letter-spacing:0;color:var(--ac);display:none" onclick="openGongImport()">Import from Gong →</button>
+          <button class="btn-skip" style="font-size:11px;text-transform:none;letter-spacing:0;color:var(--ac)" onclick="fillDemo()">Try a demo transcript →</button>
+        </span>
       </div>
       <textarea class="ta" id="ta" placeholder="Paste your call transcript here. You can get this from Gong, Chorus, Otter.ai, or any recording tool.&#10;&#10;The more detail you include, the better your evaluation will be." oninput="updateWc(this)"></textarea>
       <div class="ta-foot">
@@ -719,6 +722,34 @@
   </div>
 </div>
 
+<!-- GONG IMPORT OVERLAY -->
+<div class="ov" id="ov-gong">
+  <div class="modal">
+    <div class="modal-ico">&#x260E;</div>
+    <div class="modal-h">Import from Gong</div>
+    <p class="modal-p">Paste your Gong API access key and secret (from your Gong admin, under Settings &gt; Ecosystem &gt; API). Used once to fetch your call list and transcript, then discarded — never stored.</p>
+
+    <div id="gong-creds-step">
+      <div class="field-mb" style="text-align:left;margin-bottom:10px">
+        <div class="field-label">Access key</div>
+        <input class="txt-in" id="gong-key" type="text" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="field-mb" style="text-align:left;margin-bottom:14px">
+        <div class="field-label">Access key secret</div>
+        <input class="txt-in" id="gong-secret" type="password" autocomplete="off" spellcheck="false">
+      </div>
+      <button class="btn btn-ac" style="width:100%;padding:12px;justify-content:center" id="gong-find-btn" onclick="gongFindCalls()">Find recent calls</button>
+    </div>
+
+    <div id="gong-calls-step" style="display:none;text-align:left">
+      <div id="gong-calls-list" style="max-height:280px;overflow-y:auto;margin-bottom:12px;display:flex;flex-direction:column;gap:6px"></div>
+      <button class="btn-skip" onclick="gongBackToCreds()">&larr; Back</button>
+    </div>
+
+    <div style="margin-top:14px"><button class="btn-skip" onclick="closeGongOv()">Close</button></div>
+  </div>
+</div>
+
 <!-- ONBOARDING -->
 <div class="ob-ov" id="ob-ov">
   <div class="ob-bg" onclick="closeOv('ob-ov')"></div>
@@ -788,6 +819,14 @@ function applyRoleAwareNav(){
   var mgrOnly=isManagerOnly()
   document.getElementById('hist-btn').style.display=(signedIn&&!mgrOnly)?'flex':'none';
   document.getElementById('trends-btn').style.display=(!mgrOnly&&getHist().length>=2)?'flex':'none';
+}
+
+// Gong import is visible to any signed-in user (not manager-gated like
+// LegalFly or the trends/history nav above) — it's a personal transcript
+// tool, not a team feature.
+function applyGongGate(){
+  var el=document.getElementById('gong-import-trigger')
+  if(el) el.style.display=signedIn?'inline':'none'
 }
 
 function go(v){
@@ -1168,6 +1207,100 @@ async function generateShareLink(btn){
 
 function copyShare(){navigator.clipboard.writeText(document.getElementById('share-in').value).then(function(){closeOv('ov-share');toast('Share link copied!')})}
 
+// GONG IMPORT — the key/secret are held only in this module-scope var for
+// the lifetime of one import (from opening the modal to either a
+// successful transcript fetch or closing it), never written to
+// localStorage or Supabase. Sent fresh to gong-import.js on every
+// request; that function discards them after use too, per the same rule.
+var gongCreds=null
+
+function openGongImport(){
+  if(!signedIn){toast('Sign in to import from Gong.');openSignIn();return}
+  gongCreds=null
+  document.getElementById('gong-creds-step').style.display='block'
+  document.getElementById('gong-calls-step').style.display='none'
+  document.getElementById('gong-key').value=''
+  document.getElementById('gong-secret').value=''
+  document.getElementById('gong-calls-list').innerHTML=''
+  document.getElementById('ov-gong').classList.add('on')
+}
+
+function closeGongOv(){
+  gongCreds=null
+  document.getElementById('gong-key').value=''
+  document.getElementById('gong-secret').value=''
+  closeOv('ov-gong')
+}
+
+function gongBackToCreds(){
+  document.getElementById('gong-creds-step').style.display='block'
+  document.getElementById('gong-calls-step').style.display='none'
+}
+
+async function gongFindCalls(){
+  var key=document.getElementById('gong-key').value.trim()
+  var secret=document.getElementById('gong-secret').value.trim()
+  if(!key||!secret){toast('Enter both the access key and secret.');return}
+  gongCreds={key:key,secret:secret}
+  var btn=document.getElementById('gong-find-btn')
+  btn.disabled=true;btn.textContent='Finding calls…'
+  try{
+    var token=await getAuthToken()
+    if(!token){toast('Please sign in again.');return}
+    var res=await fetch('/.netlify/functions/gong-import',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({action:'list',gongAccessKey:gongCreds.key,gongAccessKeySecret:gongCreds.secret})
+    })
+    var data=await res.json()
+    if(!res.ok||data.error)throw new Error(data.error||'API '+res.status)
+    renderGongCalls(data.calls||[])
+  }catch(e){
+    toast(e.message||'Could not reach Gong — check your key and secret.')
+    console.error(e)
+  }finally{
+    btn.disabled=false;btn.textContent='Find recent calls'
+  }
+}
+
+function renderGongCalls(calls){
+  document.getElementById('gong-creds-step').style.display='none'
+  document.getElementById('gong-calls-step').style.display='block'
+  var list=document.getElementById('gong-calls-list')
+  if(!calls.length){
+    list.innerHTML='<p style="font-size:13px;color:var(--tx2)">No recent calls found in the last 30 days.</p>'
+    return
+  }
+  list.innerHTML=calls.map(function(c){
+    var dt=c.started?new Date(c.started).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):''
+    return '<div class="hist-c" style="cursor:pointer" onclick="gongPickCall(\''+c.id+'\')"><div class="hist-top"><div class="hist-deal">'+(c.title||'Untitled call')+'</div></div><div class="hist-meta"><span>'+dt+'</span></div></div>'
+  }).join('')
+}
+
+async function gongPickCall(callId){
+  if(!gongCreds){toast('Session expired — enter your key and secret again.');gongBackToCreds();return}
+  toast('Fetching transcript…')
+  try{
+    var token=await getAuthToken()
+    if(!token){toast('Please sign in again.');return}
+    var res=await fetch('/.netlify/functions/gong-import',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({action:'transcript',gongAccessKey:gongCreds.key,gongAccessKeySecret:gongCreds.secret,callId:callId})
+    })
+    var data=await res.json()
+    if(!res.ok||data.error)throw new Error(data.error||'API '+res.status)
+    document.getElementById('ta').value=data.transcript
+    updateWc(document.getElementById('ta'))
+    closeGongOv()
+    document.getElementById('ta').scrollIntoView({behavior:'smooth',block:'center'})
+    toast('Transcript imported from Gong — hit Run evaluation to score it.')
+  }catch(e){
+    toast(e.message||'Could not fetch that transcript.')
+    console.error(e)
+  }
+}
+
 function checkSharedEvalRoute(){
   var m=window.location.pathname.match(/^\/e\/([A-Za-z0-9-]+)/);
   if(!m)return false;
@@ -1296,6 +1429,7 @@ async function doSignOut(){
   sl('rekol_signed','0')
   applyRoleAwareNav()
   applyLegalFlyGate()
+  applyGongGate()
   document.getElementById('signin-nav-btn').style.display='flex'
   document.getElementById('manager-nav-btn').style.display='none'
   setNavUser(null)
@@ -1321,6 +1455,7 @@ async function onAuthStateChange(user){
     await Promise.all([loadEvaluationsFromSupabase(), checkManagerStatus()])
     applyRoleAwareNav()
     applyLegalFlyGate()
+    applyGongGate()
     if(isManagerOnly() && document.getElementById('v-home').classList.contains('on')){
       go('manager')
     }
@@ -1343,6 +1478,7 @@ async function onAuthStateChange(user){
     myTeams=[];currentTeamId=null;teamDashboardData=null;
     applyRoleAwareNav()
     applyLegalFlyGate()
+    applyGongGate()
     document.getElementById('signin-nav-btn').style.display='flex'
     document.getElementById('signout-btn').style.display='none'
     document.getElementById('manager-nav-btn').style.display='none'
@@ -2058,6 +2194,7 @@ document.addEventListener('DOMContentLoaded',function(){
       signedIn=true; currentUser=session.user;
       applyRoleAwareNav()
       applyLegalFlyGate()
+      applyGongGate()
       document.getElementById('signin-nav-btn').style.display='none'
       document.getElementById('signout-btn').style.display='flex'
       setNavUser(session.user)

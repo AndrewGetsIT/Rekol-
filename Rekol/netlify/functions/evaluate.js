@@ -1,5 +1,46 @@
 const https = require('https')
 
+const SUPA_HOST = 'iqdnmlzamqqskfjysfzg.supabase.co'
+const SUPA_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZG5tbHphbXFxc2tmanlzZnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNTU3NTMsImV4cCI6MjA5MTkzMTc1M30.bYFx7o_Cvr8SoLPHO_dlguOZ9x7bX9ekf_IIDUSbIYo'
+
+// LegalFly is a private framework, scoped to one account only — everyone
+// else's requests must be rejected before the LegalFly methodology (see
+// FW_DESC.LegalFly below) is ever assembled into a prompt or sent
+// anywhere. This is the real security boundary; index.html's tab-hiding
+// is a UX nicety on top of it, not a substitute for it — a hidden button
+// doesn't stop a direct API call.
+const LEGALFLY_ALLOWED_EMAIL = 'andrewlennon16@gmail.com'
+
+// Same verifyUser pattern already used in team-invite.js/team-dashboard.js/
+// ae-drilldown.js — asks Supabase Auth who a bearer token belongs to.
+// evaluate.js has never needed auth before (the product works anonymously
+// by design), so this is net-new here, used only for the LegalFly gate.
+function verifyUser(authHeader) {
+  return new Promise((resolve) => {
+    if (!authHeader) return resolve(null)
+    const token = authHeader.replace(/^Bearer\s+/i, '')
+    const options = {
+      hostname: SUPA_HOST,
+      path: '/auth/v1/user',
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + token, 'apikey': SUPA_ANON_KEY },
+    }
+    const req = https.request(options, (res) => {
+      let raw = ''
+      res.on('data', chunk => raw += chunk)
+      res.on('end', () => {
+        if (res.statusCode !== 200) return resolve(null)
+        try {
+          const user = JSON.parse(raw)
+          resolve(user && user.id ? user : null)
+        } catch (e) { resolve(null) }
+      })
+    })
+    req.on('error', () => resolve(null))
+    req.end()
+  })
+}
+
 function post(data) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify(data)
@@ -145,6 +186,19 @@ exports.handler = async function (event) {
 
   try {
     let { transcript, framework, customFields, dealName, persona, mode, dealStage } = JSON.parse(event.body)
+
+    // LegalFly is private to one account. Checked before anything else
+    // touches the framework — before FW_FIELDS/FW_DESC are even looked
+    // up — so a rejected request never gets near assembling the LegalFly
+    // methodology into a prompt. Applies to both quick and full mode.
+    if (framework === 'LegalFly') {
+      const caller = await verifyUser(event.headers.authorization || event.headers.Authorization)
+      const callerEmail = caller && caller.email ? caller.email.toLowerCase() : null
+      if (callerEmail !== LEGALFLY_ALLOWED_EMAIL.toLowerCase()) {
+        return { statusCode: 403, body: JSON.stringify({ error: 'This framework is not available.' }) }
+      }
+    }
+
     const stageLine = dealStage ? 'Deal stage: ' + dealStage + ' — factor this into your coaching, e.g. "Given this is a ' + dealStage.toLowerCase() + '-stage deal, the AE should have been focused on..."' : ''
 
     const FW_FIELDS = {

@@ -396,7 +396,7 @@
         <button class="fw-tab on" data-fw="MEDDIC" onclick="pickFw('MEDDIC',this)">MEDDIC<span class="ib">?<span class="tip">Metrics · Economic Buyer · Decision Criteria · Decision Process · Identify Pain · Champion. The gold standard for enterprise deals.</span></span></button>
         <button class="fw-tab" data-fw="BANT" onclick="pickFw('BANT',this)">BANT<span class="ib">?<span class="tip">Budget · Authority · Need · Timeline. Fast qualification for high-velocity and SMB sales cycles.</span></span></button>
         <button class="fw-tab" data-fw="SPIN" onclick="pickFw('SPIN',this)">SPIN<span class="ib">?<span class="tip">Situation · Problem · Implication · Need-Payoff. Consultative selling that uncovers deep pain before pitching.</span></span></button>
-        <button class="fw-tab" data-fw="LegalFly" onclick="pickFw('LegalFly',this)">LegalFly<span class="ib">?<span class="tip">MEDDIC plus the LegalFly layer: Security &amp; Anonymisation Wedge · Competitive Positioning · ICP &amp; Qualification Fit. Tuned to how LegalFly sells.</span></span></button>
+        <button class="fw-tab" data-fw="LegalFly" id="fw-tab-legalfly" onclick="pickFw('LegalFly',this)" style="display:none">LegalFly<span class="ib">?<span class="tip">MEDDIC plus the LegalFly layer: Security &amp; Anonymisation Wedge · Competitive Positioning · ICP &amp; Qualification Fit. Tuned to how LegalFly sells.</span></span></button>
         <button class="fw-tab" data-fw="Custom" onclick="pickFw('Custom',this)">Custom<span class="ib">?<span class="tip">Define your own evaluation criteria. Name each field and Rekol scores against exactly what matters to your process.</span></span></button>
       </div>
       <div class="cf-box" id="cf-box">
@@ -471,17 +471,10 @@
         <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Need-Payoff</span><span class="good-tag">GREEN</span></div><div class="good-quote">"If we could get that reporting automated, my team gets two days back and I walk into board meetings with live data"</div></div>
       </div>
 
-      <div class="good-fw-block" data-good-fw="LegalFly">
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Metrics</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Contract review is eating two hours per contract, and we're doing about 40 a month — that's most of a full-time role"</div></div>
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Economic Buyer</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Our GC signs off on anything legal-tech — she's asked me to bring back a recommendation by month end"</div></div>
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Decision Criteria</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We need it to work inside Word, plug into SharePoint, and our security team will want to know exactly what happens to the data"</div></div>
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Decision Process</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Security review first, then a two-week pilot with Legal Ops, then it goes to procurement"</div></div>
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Identify Pain</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We missed a liability cap in a vendor contract last quarter because it slipped through a rushed review"</div></div>
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Champion</span><span class="good-tag">GREEN</span></div><div class="good-quote">"I'll walk our Senior Legal Counsel through this tomorrow — she's been pushing for something like this for a year"</div></div>
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Security and Anonymisation Wedge</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Before anything touches a model, LegalFly strips it of anything identifying — the data's already anonymised by the time it's processed, not just covered by a contract clause"</div></div>
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">Competitive Positioning</span><span class="good-tag">GREEN</span></div><div class="good-quote">"Copilot's a great generalist tool, but it's not trained on legal review workflows or your own playbook — and it's not anonymising anything before it processes it"</div></div>
-        <div class="good-card"><div class="good-card-hd"><span class="good-card-nm">ICP and Qualification Fit</span><span class="good-tag">GREEN</span></div><div class="good-quote">"We're an in-house team of six across two jurisdictions, all on Microsoft — this is exactly the setup LegalFly's built for"</div></div>
-      </div>
+      <!-- LegalFly's good-fw-block is intentionally not static markup —
+           it's injected by injectLegalFlyGoodBlock() only after the
+           signed-in account is confirmed to be the allowed one, so it
+           isn't sitting in the page for every visitor to view-source. -->
 
       <div class="good-fw-block" data-good-fw="Custom">
         <p class="good-placeholder">Your custom framework examples will appear here once you've saved your fields.</p>
@@ -806,10 +799,63 @@ function go(v){
 }
 window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>20)});
 
+// LegalFly is private to one account (see the matching gate in
+// evaluate.js, which is the real security boundary — this is a UX
+// nicety on top of it, not a substitute; a hidden tab doesn't stop a
+// direct pickFw() call from the console, which is why pickFw() below
+// re-checks this too, not just the tab's visibility.
+var LEGALFLY_ALLOWED_EMAIL = 'andrewlennon16@gmail.com'
+function isLegalFlyAllowed(){
+  return !!(signedIn && currentUser && currentUser.email && currentUser.email.toLowerCase()===LEGALFLY_ALLOWED_EMAIL)
+}
+
+// Builds the LegalFly "what good looks like" examples only for the
+// allowed account, and only once — kept out of static HTML so it isn't
+// sitting in the page source for every visitor.
+function injectLegalFlyGoodBlock(){
+  if(document.querySelector('.good-fw-block[data-good-fw="LegalFly"]')) return
+  var examples=[
+    ['Metrics','"Contract review is eating two hours per contract, and we\'re doing about 40 a month — that\'s most of a full-time role"'],
+    ['Economic Buyer','"Our GC signs off on anything legal-tech — she\'s asked me to bring back a recommendation by month end"'],
+    ['Decision Criteria','"We need it to work inside Word, plug into SharePoint, and our security team will want to know exactly what happens to the data"'],
+    ['Decision Process','"Security review first, then a two-week pilot with Legal Ops, then it goes to procurement"'],
+    ['Identify Pain','"We missed a liability cap in a vendor contract last quarter because it slipped through a rushed review"'],
+    ['Champion','"I\'ll walk our Senior Legal Counsel through this tomorrow — she\'s been pushing for something like this for a year"'],
+    ['Security and Anonymisation Wedge','"Before anything touches a model, LegalFly strips it of anything identifying — the data\'s already anonymised by the time it\'s processed, not just covered by a contract clause"'],
+    ['Competitive Positioning','"Copilot\'s a great generalist tool, but it\'s not trained on legal review workflows or your own playbook — and it\'s not anonymising anything before it processes it"'],
+    ['ICP and Qualification Fit','"We\'re an in-house team of six across two jurisdictions, all on Microsoft — this is exactly the setup LegalFly\'s built for"'],
+  ]
+  var block=document.createElement('div')
+  block.className='good-fw-block'
+  block.dataset.goodFw='LegalFly'
+  block.innerHTML=examples.map(function(e){
+    return '<div class="good-card"><div class="good-card-hd"><span class="good-card-nm">'+e[0]+'</span><span class="good-tag">GREEN</span></div><div class="good-quote">'+e[1]+'</div></div>'
+  }).join('')
+  var customBlock=document.querySelector('.good-fw-block[data-good-fw="Custom"]')
+  customBlock.parentElement.insertBefore(block, customBlock)
+}
+
+function applyLegalFlyGate(){
+  var allowed=isLegalFlyAllowed()
+  document.getElementById('fw-tab-legalfly').style.display=allowed?'flex':'none'
+  if(allowed){
+    injectLegalFlyGoodBlock()
+  } else if(fw==='LegalFly'){
+    // Gate just closed (signed out, or a different account signed in)
+    // while LegalFly was selected — fall back to MEDDIC rather than
+    // leaving the tool pointed at a framework this session can't run.
+    var meddicBtn=document.querySelector('.fw-tab[data-fw="MEDDIC"]')
+    if(meddicBtn) pickFw('MEDDIC', meddicBtn)
+  }
+}
+
 function pickFw(f,btn,fromStage){
   if(f==='Custom'&&!signedIn){
     toast('Sign in to use custom frameworks');
     openSignIn();
+    return;
+  }
+  if(f==='LegalFly'&&!isLegalFlyAllowed()){
     return;
   }
   fw=f;
@@ -1003,13 +1049,23 @@ function animSteps(){
 
 async function callAPI(transcript,framework,customFields,dealName,persona,mode,dealStage){
   var payload=JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full',dealStage:dealStage});
-  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
+  // evaluate.js doesn't normally require auth (the product works
+  // anonymously by design) — except for the LegalFly framework, which is
+  // gated server-side to one account. Attach the token whenever signed in
+  // so that gate has something to check; harmless for every other
+  // framework, which ignores it entirely.
+  var headers={'Content-Type':'application/json'}
+  if(signedIn){
+    var token=await getAuthToken()
+    if(token) headers['Authorization']='Bearer '+token
+  }
+  var res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:headers,body:payload});
   if(res.status===502){
     // 502 (Anthropic error / malformed JSON) is often transient — one retry is cheap and usually fixes it.
     // 504 (Netlify's own function timeout) is a genuine timeout: the call already ran the full time budget
     // and got killed, so blindly re-firing it just bills a second full generation for a result the user
     // never sees. Don't auto-retry those — let the caller's catch surface it instead.
-    res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:{'Content-Type':'application/json'},body:payload});
+    res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:headers,body:payload});
   }
   if(!res.ok)throw new Error('API '+res.status);
   var data=await res.json();
@@ -1235,6 +1291,7 @@ async function doSignOut(){
   myTeams=[];currentTeamId=null;teamDashboardData=null;
   sl('rekol_signed','0')
   applyRoleAwareNav()
+  applyLegalFlyGate()
   document.getElementById('signin-nav-btn').style.display='flex'
   document.getElementById('manager-nav-btn').style.display='none'
   setNavUser(null)
@@ -1259,6 +1316,7 @@ async function onAuthStateChange(user){
     // aware nav + landing surface), so wait for both before deciding.
     await Promise.all([loadEvaluationsFromSupabase(), checkManagerStatus()])
     applyRoleAwareNav()
+    applyLegalFlyGate()
     if(isManagerOnly() && document.getElementById('v-home').classList.contains('on')){
       go('manager')
     }
@@ -1280,6 +1338,7 @@ async function onAuthStateChange(user){
     signedIn=false; currentUser=null;
     myTeams=[];currentTeamId=null;teamDashboardData=null;
     applyRoleAwareNav()
+    applyLegalFlyGate()
     document.getElementById('signin-nav-btn').style.display='flex'
     document.getElementById('signout-btn').style.display='none'
     document.getElementById('manager-nav-btn').style.display='none'
@@ -1936,6 +1995,7 @@ document.addEventListener('DOMContentLoaded',function(){
     } else if(event === 'TOKEN_REFRESHED'){
       signedIn=true; currentUser=session.user;
       applyRoleAwareNav()
+      applyLegalFlyGate()
       document.getElementById('signin-nav-btn').style.display='none'
       document.getElementById('signout-btn').style.display='flex'
       setNavUser(session.user)

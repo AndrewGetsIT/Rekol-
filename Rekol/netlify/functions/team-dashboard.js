@@ -147,6 +147,7 @@ exports.handler = async function (event) {
       sectionAggregates: [],
       aeSummaries: [],
       coachingBrief: null,
+      weakestSection: null,
     }
 
     if (!activeMembers.length) {
@@ -301,12 +302,16 @@ exports.handler = async function (event) {
       }).sort((a, b) => a.avgScore - b.avgScore),
     })).sort((a, b) => b.evalCount - a.evalCount)
 
-    // Flat view (all frameworks' sections, sorted by score) purely for the
-    // coaching-brief prompt below, which just wants "what's weakest" and
-    // doesn't need the per-framework structure.
+    // Flat view (all frameworks' sections, sorted by score) — used both
+    // for the coaching-brief prompt below (which just wants "what's
+    // weakest" and doesn't need the per-framework structure) and as the
+    // source for the team's single weakest-section callout (rules-based,
+    // no AI — just the lowest avgScore across every section the team has
+    // any data for).
     const flatSectionsForBrief = sectionAggregates
       .flatMap(g => g.sections.map(s => Object.assign({}, s, { framework: g.framework })))
       .sort((a, b) => a.avgScore - b.avgScore)
+    const weakestSection = flatSectionsForBrief[0] || null
 
     // Per-AE summary — same framework-grouping and coercion fixes as the
     // team-wide aggregate above, in case one AE's own history spans more
@@ -367,6 +372,7 @@ exports.handler = async function (event) {
         sectionAggregates: sectionAggregates,
         aeSummaries: aeSummaries,
         coachingBrief: coachingBrief,
+        weakestSection: weakestSection,
       }),
     }
 

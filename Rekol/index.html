@@ -1585,6 +1585,10 @@ function renderManagerDashboard(data){
     + '<div class="card"><div class="card-l">Active AEs</div><div class="mgr-stat-num">'+data.memberCount+'</div></div>'
     + '</div>'
 
+  if(data.weakestSection){
+    html += '<div class="card" style="margin-bottom:20px"><div class="card-l">Team weakest stage</div><div class="card-t" style="font-size:15px">'+data.weakestSection.name+' <span style="color:'+scoreColor(data.weakestSection.avgScore)+';font-family:\'JetBrains Mono\',monospace">(avg '+data.weakestSection.avgScore+')</span><span style="color:var(--tx3);font-size:12px"> — '+data.weakestSection.framework+'</span></div></div>'
+  }
+
   if(data.coachingBrief){
     html += '<div class="card" style="margin-bottom:20px"><div class="card-l">Focus for your next team meeting</div><div class="card-t">'+data.coachingBrief+'</div></div>'
   }

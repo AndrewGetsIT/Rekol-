@@ -1589,6 +1589,21 @@ function renderManagerDashboard(data){
     html += '<div class="card" style="margin-bottom:20px"><div class="card-l">Team weakest stage</div><div class="card-t" style="font-size:15px">'+data.weakestSection.name+' <span style="color:'+scoreColor(data.weakestSection.avgScore)+';font-family:\'JetBrains Mono\',monospace">(avg '+data.weakestSection.avgScore+')</span><span style="color:var(--tx3);font-size:12px"> — '+data.weakestSection.framework+'</span></div></div>'
   }
 
+  // Feature 5: honest activity stat — real counts only, no invented
+  // coverage percentage against an unknown total-calls denominator.
+  if(data.activity){
+    var act=data.activity
+    html += '<div class="card" style="margin-bottom:20px"><div class="card-l">Activity this week</div><div class="card-t" style="font-size:15px">'+act.evalsThisWeek+' evaluation'+(act.evalsThisWeek===1?'':'s')+' this week across '+act.repsThisWeek+' rep'+(act.repsThisWeek===1?'':'s')+'</div>'
+    if(act.byRep.length){
+      html += '<div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">'
+        + act.byRep.map(function(r){
+            return '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--tx2)"><span>'+r.name+'</span><span style="font-family:\'JetBrains Mono\',monospace;color:'+(r.evalsThisWeek?'var(--tx)':'var(--tx3)')+'">'+r.evalsThisWeek+'</span></div>'
+          }).join('')
+        + '</div>'
+    }
+    html += '</div>'
+  }
+
   if(data.coachingBrief){
     html += '<div class="card" style="margin-bottom:20px"><div class="card-l">Focus for your next team meeting</div><div class="card-t">'+data.coachingBrief+'</div></div>'
   }

@@ -148,6 +148,7 @@ exports.handler = async function (event) {
       aeSummaries: [],
       coachingBrief: null,
       weakestSection: null,
+      activity: { evalsThisWeek: 0, repsThisWeek: 0, byRep: [] },
     }
 
     if (!activeMembers.length) {
@@ -239,6 +240,29 @@ exports.handler = async function (event) {
     const evalCount = strippedEvals.length
     const avgScore = scoredEvals.length ? Math.round(scoredEvals.reduce((sum, e) => sum + e.overall_score, 0) / scoredEvals.length) : null
     const trend = strippedEvals.map(e => ({ date: e.created_at, score: e.overall_score, userId: e.user_id }))
+
+    // Activity stat — real counts only, never a fabricated coverage
+    // percentage against an unknown total-calls denominator. Rekol has no
+    // way to know how many calls a rep actually took, only how many they
+    // evaluated, so a "coverage %" here would be a made-up number against
+    // a made-up total. "This week" is a fixed 7-day window, independent
+    // of whichever range tab (7d/30d/90d) is selected, so the stat means
+    // the same thing regardless of that toggle. If a real total-calls
+    // figure ever becomes available (e.g. a Gong import), a true
+    // coverage % can be computed against it then — not before.
+    const weekAgoMs = Date.now() - 7 * 24 * 60 * 60 * 1000
+    const evalsThisWeek = strippedEvals.filter(e => new Date(e.created_at).getTime() >= weekAgoMs)
+    const countByUserThisWeek = {}
+    evalsThisWeek.forEach(e => { countByUserThisWeek[e.user_id] = (countByUserThisWeek[e.user_id] || 0) + 1 })
+    const activity = {
+      evalsThisWeek: evalsThisWeek.length,
+      repsThisWeek: new Set(evalsThisWeek.map(e => e.user_id)).size,
+      byRep: activeMembers.map(m => ({
+        userId: m.user_id,
+        name: nameById[m.user_id] || 'Unknown',
+        evalsThisWeek: countByUserThisWeek[m.user_id] || 0,
+      })).sort((a, b) => b.evalsThisWeek - a.evalsThisWeek),
+    }
 
     // Per-section aggregate, grouped by framework — MEDDIC/BANT/SPIN (and
     // any custom framework) each get their own bucket so sections are
@@ -373,6 +397,7 @@ exports.handler = async function (event) {
         aeSummaries: aeSummaries,
         coachingBrief: coachingBrief,
         weakestSection: weakestSection,
+        activity: activity,
       }),
     }
 

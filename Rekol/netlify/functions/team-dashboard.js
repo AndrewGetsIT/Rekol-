@@ -208,16 +208,29 @@ exports.handler = async function (event) {
       return out
     }
 
-    // Strip each eval's sections down to name/score/status only — no
-    // covered/gaps/coaching/next_step, and there is no transcript field
-    // to strip in the first place (never stored).
+    // Strip each eval's sections down to name/score/status/covered — no
+    // gaps/coaching/next_step, and there is no transcript field to strip
+    // in the first place (never stored). `covered` is kept (unlike
+    // before) so the dashboard can show one representative evidence
+    // quote per section — see exampleQuote below — without exposing a
+    // rep's full eval-by-eval coaching detail at the team level.
     const strippedEvals = evals.map(e => ({
       user_id: e.user_id,
       fw: e.fw || 'Unknown',
       overall_score: cleanScore(e.overall_score),
       created_at: e.created_at,
-      sections: dedupeSections((e.sections || []).map(s => ({ name: s.name, score: cleanScore(s.score), status: s.status }))),
+      sections: dedupeSections((e.sections || []).map(s => ({ name: s.name, score: cleanScore(s.score), status: s.status, covered: s.covered }))),
     }))
+
+    // Trims a section's `covered` text down to a short example quote for
+    // the dashboard — the model is instructed to cite specific lines in
+    // covered, so this is real evidence, not a fabricated summary.
+    function excerptQuote(text) {
+      if (!text) return null
+      const trimmed = String(text).trim()
+      if (trimmed.length <= 220) return trimmed
+      return trimmed.slice(0, 220).replace(/\s+\S*$/, '') + '…'
+    }
 
     // Team-level stats — only average evals with a usable overall_score,
     // same reasoning as cleanScore() above.
@@ -239,10 +252,16 @@ exports.handler = async function (event) {
       e.sections.forEach(s => {
         if (!s.name || s.score === null) return
         const bucket = sectionAggByFw[e.fw].sections
-        bucket[s.name] = bucket[s.name] || { sum: 0, count: 0, red: 0 }
+        bucket[s.name] = bucket[s.name] || { sum: 0, count: 0, red: 0, exampleQuote: null }
         bucket[s.name].sum += s.score
         bucket[s.name].count++
         if (s.status === 'red') bucket[s.name].red++
+        // strippedEvals is already ordered oldest-to-newest (the Supabase
+        // query is order=created_at.asc), so overwriting on every match
+        // naturally leaves the MOST RECENT eval's quote here by the time
+        // the loop finishes.
+        const quote = excerptQuote(s.covered)
+        if (quote) bucket[s.name].exampleQuote = quote
       })
     })
     const sectionAggregates = Object.keys(sectionAggByFw).map(fw => ({
@@ -255,6 +274,7 @@ exports.handler = async function (event) {
           avgScore: Math.round(agg.sum / agg.count),
           redCount: agg.red,
           totalCount: agg.count,
+          exampleQuote: agg.exampleQuote,
         }
       }).sort((a, b) => a.avgScore - b.avgScore),
     })).sort((a, b) => b.evalCount - a.evalCount)

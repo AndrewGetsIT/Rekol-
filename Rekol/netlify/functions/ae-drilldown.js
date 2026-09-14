@@ -103,6 +103,17 @@ function dedupeSections(sections) {
 // meaningful for MEDDIC evals; other frameworks don't have these section
 // names at all, so this returns null for them — callers should render
 // that as "not applicable", not as a missing/zero score.
+// Trims a section's `covered` text down to a short example quote for the
+// drilldown — the model is instructed to cite specific lines in covered,
+// so this is real evidence, not a fabricated summary. Same helper as
+// team-dashboard.js.
+function excerptQuote(text) {
+  if (!text) return null
+  const trimmed = String(text).trim()
+  if (trimmed.length <= 220) return trimmed
+  return trimmed.slice(0, 220).replace(/\s+\S*$/, '') + '…'
+}
+
 const HEALTH_WEIGHTS = { 'Economic Buyer': 0.30, 'Champion': 0.25, 'Decision Process': 0.25, 'Metrics': 0.20 }
 function dealHealth(fw, sections) {
   if (fw !== 'MEDDIC') return null
@@ -210,13 +221,21 @@ exports.handler = async function (event) {
     const sectionAgg = {}
     evals.forEach(e => e.sections.forEach(s => {
       if (!s.name || s.score === null) return
-      sectionAgg[s.name] = sectionAgg[s.name] || { sum: 0, count: 0 }
+      sectionAgg[s.name] = sectionAgg[s.name] || { sum: 0, count: 0, exampleQuote: null }
       sectionAgg[s.name].sum += s.score
       sectionAgg[s.name].count++
+      // evals is already ordered newest-first (the Supabase query is
+      // order=created_at.desc), so only setting this the first time we
+      // see a section leaves the MOST RECENT eval's quote here.
+      if (!sectionAgg[s.name].exampleQuote) {
+        const quote = excerptQuote(s.covered)
+        if (quote) sectionAgg[s.name].exampleQuote = quote
+      }
     }))
     const sectionAverages = Object.keys(sectionAgg).map(name => ({
       name: name,
       avgScore: Math.round(sectionAgg[name].sum / sectionAgg[name].count),
+      exampleQuote: sectionAgg[name].exampleQuote,
     }))
     const strengths = sectionAverages.slice().sort((a, b) => b.avgScore - a.avgScore).slice(0, 2)
     const strongNames = strengths.map(s => s.name)

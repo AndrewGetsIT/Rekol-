@@ -241,6 +241,10 @@
     .breakdown-bar-track{flex:1;height:5px;border-radius:3px;background:var(--bd);overflow:hidden}
     .breakdown-bar-fill{height:100%;background:var(--ac);border-radius:3px}
     .breakdown-sc{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tx2);width:34px;text-align:right;flex-shrink:0}
+    .breakdown-item{border-bottom:1px solid var(--bd);padding:10px 0}
+    .breakdown-item:last-child{border-bottom:none}
+    .breakdown-item .breakdown-row{border-bottom:none;padding:0}
+    .breakdown-quote{font-size:11px;color:var(--tx3);font-style:italic;margin-top:4px;line-height:1.4}
 
     /* MANAGER DASHBOARD */
     .mgr-email-ta{min-height:70px}
@@ -1418,6 +1422,19 @@ function scoreColor(score){
   return 'var(--red)'
 }
 
+// One section's score row (name / bar / score), plus its representative
+// evidence quote underneath when one's available — the model is
+// instructed to cite specific lines, so exampleQuote is real evidence
+// from a real eval, not a fabricated summary. Shared by the manager
+// dashboard's team breakdown and the AE drilldown's strengths/develop
+// bars — managers should be able to see the evidence behind a score, not
+// just trust the number.
+function breakdownRowHtml(s,extraHtml){
+  var row='<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'
+  var quote=s.exampleQuote?'<div class="breakdown-quote">&ldquo;'+s.exampleQuote+'&rdquo;</div>':''
+  return '<div class="breakdown-item">'+row+quote+(extraHtml||'')+'</div>'
+}
+
 async function renderManagerView(){
   if(!signedIn){ toast('Sign in to access the manager dashboard.'); go('home'); return }
   document.getElementById('mgr-create').style.display='none'
@@ -1580,10 +1597,8 @@ function renderManagerDashboard(data){
   data.sectionAggregates.forEach(function(g){
     html += '<div class="fw-breakdown-h">'+g.framework+' <span style="color:var(--tx3);font-size:12px;font-family:Sora,sans-serif">('+g.evalCount+' eval'+(g.evalCount===1?'':'s')+')</span></div>'
     g.sections.forEach(function(s){
-      html += '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'
-      if(s.redCount > 0){
-        html += '<div style="font-size:11px;color:var(--tx3);margin:-6px 0 8px">red in '+s.redCount+' of '+s.totalCount+' evaluations</div>'
-      }
+      var redLine=s.redCount>0?'<div style="font-size:11px;color:var(--tx3);margin-top:4px">red in '+s.redCount+' of '+s.totalCount+' evaluations</div>':''
+      html += breakdownRowHtml(s, redLine)
     })
   })
 
@@ -1667,10 +1682,10 @@ function renderAeProfilePanel(data){
     html += '<div class="fw-breakdown-h">Strengths &amp; development areas</div>'
     html += '<div class="ae-profile-cols">'
       + '<div class="ae-profile-col"><div class="ae-profile-col-h">Strong</div>'
-      + (data.strengths.map(function(s){return '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'}).join('') || '<p style="font-size:12px;color:var(--tx3)">Not enough data yet.</p>')
+      + (data.strengths.map(function(s){return breakdownRowHtml(s)}).join('') || '<p style="font-size:12px;color:var(--tx3)">Not enough data yet.</p>')
       + '</div>'
       + '<div class="ae-profile-col"><div class="ae-profile-col-h">Develop</div>'
-      + (data.developAreas.map(function(s){return '<div class="breakdown-row"><div class="breakdown-nm">'+s.name+'</div><div class="breakdown-bar-track"><div class="breakdown-bar-fill" style="width:'+s.avgScore+'%;background:'+scoreColor(s.avgScore)+'"></div></div><div class="breakdown-sc">'+s.avgScore+'</div></div>'}).join('') || '<p style="font-size:12px;color:var(--tx3)">Not enough data yet.</p>')
+      + (data.developAreas.map(function(s){return breakdownRowHtml(s)}).join('') || '<p style="font-size:12px;color:var(--tx3)">Not enough data yet.</p>')
       + '</div>'
       + '</div>'
   }

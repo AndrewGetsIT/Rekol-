@@ -155,7 +155,7 @@
     .ld-h{font-family:'Cormorant Garamond',serif;font-size:28px;margin-bottom:5px}
     .ld-p{font-size:13px;color:var(--tx2)}
     .ld-steps{margin:32px auto 0;max-width:260px;display:flex;flex-direction:column;gap:11px;align-items:flex-start}
-    .ld-step{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--tx3);opacity:0;transition:opacity .4s,color .4s}
+    .ld-step{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--tx3);opacity:0;transition:opacity .4s,color .4s;text-align:left}
     .ld-step.act{opacity:1;color:var(--tx)}
     .ld-step.done{opacity:1;color:var(--green)}
     .ld-dot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
@@ -505,7 +505,7 @@
     <div style="margin-bottom:40px">
       <h2 class="lp-h">See it run</h2>
       <p class="demo-sub">A real discovery call scored against MEDDIC in 30 seconds, including the gap it caught.</p>
-      <video class="demo-video" controls preload="none" playsinline>
+      <video class="demo-video" controls preload="metadata" playsinline poster="images/rekol-demo-poster.jpg">
         <source src="rekol-demo.mp4" type="video/mp4">
         Your browser does not support embedded video.
       </video>

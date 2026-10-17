@@ -680,7 +680,7 @@
   <div class="modal">
     <div class="modal-ico">&#x26A1;</div>
     <div class="modal-h">Save your evaluation</div>
-    <p class="modal-p">Save your history, share evaluations with your team, and build a coaching record over time.</p>
+    <p class="modal-p" id="signin-msg">Save your history, share evaluations with your team, and build a coaching record over time.</p>
     <div class="modal-acts">
 
       <!-- Google -->
@@ -698,10 +698,10 @@
       </div>
 
       <div class="signin-footer">
-        By signing up you agree to our <a href="#" onclick="closeOv('ov-signin')">Privacy policy</a> · <a href="/terms.html">Terms</a>
+        By signing up you agree to our <a href="#" onclick="dismissSignIn()">Privacy policy</a> · <a href="/terms.html">Terms</a>
       </div>
 
-      <button class="btn-skip" onclick="closeOv('ov-signin')">Skip for now</button>
+      <button class="btn-skip" onclick="dismissSignIn()">Skip for now</button>
     </div>
   </div>
 </div>
@@ -982,21 +982,32 @@ function updateWc(ta){
   document.getElementById('err').classList.remove('on');
 }
 
+// The built-in demo call. Signed-out visitors can score exactly this text
+// (evaluate.js recognises it by hash); scoring anything else needs sign-in.
+var DEMO_TRANSCRIPT='AE: Thanks for making the time, Sarah. You mentioned last week that your ops team is struggling with the manual reporting process — can you tell me more about the scale of that problem?\n\nSarah: Yeah it\'s significant. We have three people spending roughly two days each per month just pulling data into spreadsheets. That\'s six person-days wasted every cycle, and the data\'s still out of date by the time it gets to the board.\n\nAE: What does that cost you in real terms?\n\nSarah: Honestly, if I had to put a number on it — maybe £80k a year in wasted headcount. But the bigger issue is the decisions we\'re making on stale data. We missed a stock issue in Q2 because our ops report was three weeks behind.\n\nAE: I can see why that\'s critical. Tom, from a technical standpoint, what does your current stack look like?\n\nTom: We\'re running SAP for finance, Salesforce for CRM, and then a patchwork of spreadsheets and a legacy tool that we built in-house about eight years ago. It\'s not maintainable anymore.\n\nAE: Is there a formal evaluation process we should know about? Other vendors in the mix?\n\nTom: We\'re looking at two other platforms — one of your competitors and a build-it-ourselves option. Sarah has final sign-off but the IT team needs to approve anything from a security and integration standpoint.\n\nAE: What does the timeline look like for a decision?\n\nSarah: We\'d want something live before the end of Q4. So we\'re talking a decision by end of September at the latest.\n\nAE: And in terms of budget — is that allocated or still being approved?\n\nSarah: It\'s provisionally allocated. We have a £120k ceiling for this year. I\'d need to go back to the CFO if we go above that, which I\'d rather avoid.\n\nAE: Makes sense. Sarah, if we solve this — what does success look like for you personally six months in?\n\nSarah: Honestly? My team gets two days of their month back, and I can walk into the board meeting with a live dashboard instead of a PDF that\'s three weeks old. That\'s the dream.\n\nAE: That\'s really clear. I think we can get you there. Let me put together a scoped proposal and I\'ll send it over by Thursday — I\'ll include the integration spec for Tom as well.';
+function normText(t){return String(t||'').replace(/\s+/g,' ').trim()}
+function isDemoText(t){return normText(t)===normText(DEMO_TRANSCRIPT)}
+
 function fillDemo(){
   document.getElementById('deal-name').value='Acme Corp — Q3 ERP Rollout';
   document.getElementById('persona').value='Sarah Mitchell (VP Operations, economic buyer), Tom Reeves (IT Director, technical evaluator)';
-  document.getElementById('ta').value='AE: Thanks for making the time, Sarah. You mentioned last week that your ops team is struggling with the manual reporting process — can you tell me more about the scale of that problem?\n\nSarah: Yeah it\'s significant. We have three people spending roughly two days each per month just pulling data into spreadsheets. That\'s six person-days wasted every cycle, and the data\'s still out of date by the time it gets to the board.\n\nAE: What does that cost you in real terms?\n\nSarah: Honestly, if I had to put a number on it — maybe £80k a year in wasted headcount. But the bigger issue is the decisions we\'re making on stale data. We missed a stock issue in Q2 because our ops report was three weeks behind.\n\nAE: I can see why that\'s critical. Tom, from a technical standpoint, what does your current stack look like?\n\nTom: We\'re running SAP for finance, Salesforce for CRM, and then a patchwork of spreadsheets and a legacy tool that we built in-house about eight years ago. It\'s not maintainable anymore.\n\nAE: Is there a formal evaluation process we should know about? Other vendors in the mix?\n\nTom: We\'re looking at two other platforms — one of your competitors and a build-it-ourselves option. Sarah has final sign-off but the IT team needs to approve anything from a security and integration standpoint.\n\nAE: What does the timeline look like for a decision?\n\nSarah: We\'d want something live before the end of Q4. So we\'re talking a decision by end of September at the latest.\n\nAE: And in terms of budget — is that allocated or still being approved?\n\nSarah: It\'s provisionally allocated. We have a £120k ceiling for this year. I\'d need to go back to the CFO if we go above that, which I\'d rather avoid.\n\nAE: Makes sense. Sarah, if we solve this — what does success look like for you personally six months in?\n\nSarah: Honestly? My team gets two days of their month back, and I can walk into the board meeting with a live dashboard instead of a PDF that\'s three weeks old. That\'s the dream.\n\nAE: That\'s really clear. I think we can get you there. Let me put together a scoped proposal and I\'ll send it over by Thursday — I\'ll include the integration spec for Tom as well.';
+  document.getElementById('ta').value=DEMO_TRANSCRIPT;
   updateWc(document.getElementById('ta'));
   document.getElementById('ta').scrollIntoView({behavior:'smooth',block:'center'});
   toast('Demo transcript loaded — hit Run evaluation to see it in action');
 }
 
 async function runEval(){
-  if(!isPro&&evalCount>=FREE_LIMIT){document.getElementById('ov-upgrade').classList.add('on');return}
   var transcript=document.getElementById('ta').value.trim();
   var dealName=document.getElementById("deal-name").value.trim();
   var persona=document.getElementById("persona").value.trim();
   if(!transcript||transcript.split(/\s+/).length<50){document.getElementById('err').classList.add('on');document.getElementById('ta').focus();return}
+  // Sign-in gate: the demo transcript is free for everyone; scoring your own
+  // call needs an account (the server enforces this too). The free-tier
+  // limit is likewise only for real evaluations, never the demo.
+  var isDemo=isDemoText(transcript);
+  if(!isDemo&&!signedIn){promptSignInForEval();return}
+  if(!isDemo&&!isPro&&evalCount>=FREE_LIMIT){document.getElementById('ov-upgrade').classList.add('on');return}
   var customFields=[];
   if(fw==='Custom'){
     var rows=Array.from(document.querySelectorAll('#cf-list .cf-row'));
@@ -1011,7 +1022,7 @@ async function runEval(){
   var secNames=fw==='Custom'?customFields.map(function(f){return typeof f==='object'?f.name:f}):getFwFields();
   // Held in memory only (never stored) so that, if one batch of the full
   // pass fails, just those sections can be re-scored without re-pasting.
-  lastRun={transcript:transcript,framework:fw,customFields:customFields,dealName:dealName,persona:persona,dealStage:dealStage,sectionNames:secNames};
+  lastRun={transcript:transcript,framework:fw,customFields:customFields,dealName:dealName,persona:persona,dealStage:dealStage,sectionNames:secNames,isDemo:isDemo,retryToken:null};
   evalRunState={failed:[],needsNext:false};evalSaved=false;pendingEvalSave=false;
   // Fire both calls in parallel — quick resolves first for the score,
   // full keeps running in the background for sections/next steps
@@ -1026,7 +1037,11 @@ async function runEval(){
   try{
     quick=await quickPromise;
   }catch(e){
-    go('home');toast('Something went wrong — please try again. Your transcript is still there.',5000);console.error(e);
+    go('home');
+    if(e&&e.code==='sign_in_required'){promptSignInForEval()}
+    else if(e&&e.code==='upgrade_required'){document.getElementById('ov-upgrade').classList.add('on')}
+    else{toast('Something went wrong — please try again. Your transcript is still there.',5000)}
+    console.error(e);
     return;
   }
   curEval=Object.assign({},quick,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid(),sections:[],next_steps:[]});
@@ -1044,13 +1059,17 @@ async function runEval(){
   }
   curEval.sections=full.sections||[];
   curEval.next_steps=full.next_steps||[];
+  lastRun.retryToken=full.retry_token||null;
   evalRunState.failed=(full.failed_sections||[]).slice();
   evalRunState.needsNext=!!full.needs_next_steps;
   renderSections(curEval,true,evalRunState.failed);
 
   // The evaluation happened once, however many sections loaded. Retrying
   // failed sections later never counts again.
-  evalCount++;sl('rekol_count',evalCount.toString());syncEvalCount();
+  // The server counts the evaluation (profiles.eval_count) — the browser
+  // never writes the count. Show it straight away, then take the server's
+  // number. The demo is never counted.
+  if(!isDemo&&signedIn){evalCount++;sl('rekol_count',evalCount.toString());loadProfile()}
   updateLimitBar();
   if(!hadEval){hadEval=true;sl('rekol_evald','1')}
   if(evalRunState.failed.length){
@@ -1089,7 +1108,7 @@ async function retryFailedSections(){
   var names=evalRunState.failed.slice(),needNext=evalRunState.needsNext;
   setRetryButtons(true);
   try{
-    var data=await callAPI(lastRun.transcript,lastRun.framework,lastRun.customFields,lastRun.dealName,lastRun.persona,'full',lastRun.dealStage,{sections:names,includeNextSteps:needNext});
+    var data=await callAPI(lastRun.transcript,lastRun.framework,lastRun.customFields,lastRun.dealName,lastRun.persona,'full',lastRun.dealStage,{sections:names,includeNextSteps:needNext,retry_token:lastRun.retryToken});
     var have={};
     curEval.sections.forEach(function(sec){have[sec.name]=sec});
     (data.sections||[]).forEach(function(sec){if(sec&&sec.name&&!have[sec.name])have[sec.name]=sec});
@@ -1102,7 +1121,7 @@ async function retryFailedSections(){
   }catch(e){
     console.error(e);
     setRetryButtons(false);
-    toast('Could not score those sections yet — please try again.');
+    toast(e&&e.code==='retry_not_allowed'?'This evaluation is too old to retry. Please run it again.':'Could not score those sections yet — please try again.');
   }
 }
 
@@ -1225,6 +1244,10 @@ async function callAPI(transcript,framework,customFields,dealName,persona,mode,d
     // and got killed, so blindly re-firing it just bills a second full generation for a result the user
     // never sees. Don't auto-retry those — let the caller's catch surface it instead.
     res=await fetch('/.netlify/functions/evaluate',{method:'POST',headers:headers,body:payload});
+  }
+  if(res.status===401||res.status===402||res.status===403){
+    var code=res.status===401?'sign_in_required':res.status===402?'upgrade_required':'retry_not_allowed';
+    var err=new Error(code);err.code=code;throw err;
   }
   if(!res.ok)throw new Error('API '+res.status);
   var data=await res.json();
@@ -1508,7 +1531,53 @@ function copyPractice(){
 }
 function exportPDF(){toast('PDF export coming soon — use Copy to paste into your CRM for now.')}
 
-function openSignIn(){document.getElementById('ov-signin').classList.add('on')}
+var SIGNIN_DEFAULT_MSG='Save your history, share evaluations with your team, and build a coaching record over time.';
+function openSignIn(msg){
+  document.getElementById('signin-msg').textContent=(typeof msg==='string'&&msg)?msg:SIGNIN_DEFAULT_MSG;
+  document.getElementById('ov-signin').classList.add('on')
+}
+// The modal's Skip / dismiss: also forgets any call that was waiting for sign-in.
+function dismissSignIn(){closeOv('ov-signin');clearPendingEval()}
+
+// Scoring your own call needs an account. Keep what was typed so that after
+// sign-in (Google sends the user away and back) the evaluation starts by
+// itself. Held in sessionStorage only — it is gone when the tab closes, never
+// in localStorage — and cleared as soon as it is resumed, when the sign-in
+// modal is dismissed, and after 30 minutes.
+var PENDING_KEY='rekol_pending_eval',PENDING_MAX_AGE_MS=30*60*1000,pendingTimer=null;
+function ssGet(k){try{return sessionStorage.getItem(k)}catch(e){return null}}
+function ssSet(k,v){try{sessionStorage.setItem(k,v)}catch(e){}}
+function clearPendingEval(){
+  try{sessionStorage.removeItem(PENDING_KEY)}catch(e){}
+  if(pendingTimer){clearTimeout(pendingTimer);pendingTimer=null}
+}
+function promptSignInForEval(){
+  ssSet(PENDING_KEY,JSON.stringify({
+    t:document.getElementById('ta').value,
+    deal:document.getElementById('deal-name').value,
+    persona:document.getElementById('persona').value,
+    fw:fw,stage:dealStage,at:Date.now()
+  }));
+  if(pendingTimer)clearTimeout(pendingTimer);
+  pendingTimer=setTimeout(clearPendingEval,PENDING_MAX_AGE_MS);
+  openSignIn('Sign in to score your own call. Takes 10 seconds.');
+}
+function resumePendingEval(){
+  var raw=ssGet(PENDING_KEY);
+  if(!raw)return false;
+  clearPendingEval();
+  var p;try{p=JSON.parse(raw)}catch(e){return false}
+  if(!p||!p.t||!p.at||Date.now()-p.at>PENDING_MAX_AGE_MS)return false;
+  document.getElementById('ta').value=p.t;updateWc(document.getElementById('ta'));
+  document.getElementById('deal-name').value=p.deal||'';
+  document.getElementById('persona').value=p.persona||'';
+  var fwBtn=document.querySelector('.fw-tab[data-fw="'+p.fw+'"]');
+  if(fwBtn&&p.fw&&p.fw!==fw)pickFw(p.fw,fwBtn);
+  if(p.stage)dealStage=p.stage;
+  toast('Welcome back — scoring your call now.');
+  runEval();
+  return true;
+}
 
 async function doSignIn(){
   var opts = { redirectTo: window.location.origin }
@@ -1576,6 +1645,8 @@ async function onAuthStateChange(user){
       go('manager')
     }
     claimTeamMemberships()
+    // If sign-in was prompted by trying to score their own call, carry on with it
+    resumePendingEval()
     // Send welcome email on first ever sign in
     if(!gl('rekol_welcomed')){
       sl('rekol_welcomed','1')
@@ -2031,13 +2102,6 @@ function backToAeProfile(){
   }
 }
 
-async function syncEvalCount(){
-  if(!currentUser) return
-  await supa.from('profiles')
-    .update({ eval_count: evalCount })
-    .eq('id', currentUser.id)
-}
-
 async function syncCustomFw(fw){
   if(!currentUser) return
   await supa.from('profiles')
@@ -2312,6 +2376,8 @@ function sl(k,v){try{localStorage.setItem(k,v)}catch{}}
 
 document.addEventListener('DOMContentLoaded',function(){
   updateLimitBar()
+  try{localStorage.removeItem(PENDING_KEY)}catch(e){}
+  try{var pend=JSON.parse(ssGet(PENDING_KEY)||'null');if(pend&&(!pend.at||Date.now()-pend.at>PENDING_MAX_AGE_MS))clearPendingEval()}catch(e){clearPendingEval()}
   checkSharedEvalRoute()
 
   supa.auth.onAuthStateChange(function(event, session){

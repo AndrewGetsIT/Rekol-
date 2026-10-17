@@ -70,6 +70,7 @@ function createSandbox(opts = {}) {
   const toasts = []
   const fetchCalls = []
   const profileWrites = []
+  const domReady = []
 
   const document = {
     getElementById: (id) => get('#' + id),
@@ -77,7 +78,7 @@ function createSandbox(opts = {}) {
     querySelectorAll: () => [],
     createElement: () => new El('created'),
     createTextNode: (t) => { const e = new El('text'); e.textContent = t; return e },
-    addEventListener() {},
+    addEventListener(ev, fn) { if (ev === 'DOMContentLoaded') domReady.push(fn) },
     body: get('body'),
     title: 'Rekol',
   }
@@ -148,6 +149,7 @@ function createSandbox(opts = {}) {
     store: local.store,
     sessionStore: session.store,
     profileWrites,
+    fireDomReady: () => domReady.forEach((fn) => fn()),
     run: (code) => vm.runInContext(code, ctx),
     // objects created inside the vm have a different prototype; copy them across for deepStrictEqual
     plain: (x) => JSON.parse(JSON.stringify(x)),

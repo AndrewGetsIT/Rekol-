@@ -1,4 +1,5 @@
 const https = require('https')
+const crypto = require('crypto')
 
 const SUPA_HOST = 'iqdnmlzamqqskfjysfzg.supabase.co'
 const SUPA_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlxZG5tbHphbXFxc2tmanlzZnpnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzNTU3NTMsImV4cCI6MjA5MTkzMTc1M30.bYFx7o_Cvr8SoLPHO_dlguOZ9x7bX9ekf_IIDUSbIYo'
@@ -10,6 +11,123 @@ const SUPA_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 // is a UX nicety on top of it, not a substitute for it — a hidden button
 // doesn't stop a direct API call.
 const LEGALFLY_ALLOWED_EMAIL = 'andrewlennon16@gmail.com'
+
+// Signed-out visitors may only score the built-in demo transcript (the text
+// behind "Try a demo transcript" in index.html). Their own transcripts need
+// a signed-in account. Compared by SHA-256 of the whitespace-normalised
+// text, so there is no copy of the demo text to keep in sync here — a test
+// (tests/auth-gate.test.js) fails if index.html's demo text ever drifts from
+// this hash.
+const DEMO_TRANSCRIPT_SHA256 = 'c9d9f51dd3fa83bb2caa72d12f84eddf6f6383be86f8b4d295c158e15073a2f0'
+function normaliseTranscript(t) { return String(t || '').replace(/\s+/g, ' ').trim() }
+function sha256Hex(t) { return crypto.createHash('sha256').update(normaliseTranscript(t)).digest('hex') }
+function isDemoTranscript(t) { return sha256Hex(t) === DEMO_TRANSCRIPT_SHA256 }
+
+// Free tier: this many evaluations per signed-in, non-pro account. Counted
+// here on the server (profiles.eval_count) — the browser's copy is only for
+// display, so clearing localStorage no longer resets anything.
+const FREE_LIMIT = 10
+
+// Retry tokens. Re-scoring failed sections (a `sections` subset) is not
+// metered, so it must not be usable as a free way to score a new
+// transcript. A full pass that was allowed (signed in, under the limit)
+// returns retry_token = expiry + '.' + HMAC-SHA256(secret,
+// user_id | sha256(normalised transcript) | framework | expiry). A retry
+// must present a token that matches the same user, transcript and
+// framework and has not expired (30 minutes). No RETRY_TOKEN_SECRET means
+// retries fail closed.
+const RETRY_TOKEN_TTL_MS = 30 * 60 * 1000
+function retrySignature(userId, transcript, framework, expiry) {
+  return crypto.createHmac('sha256', process.env.RETRY_TOKEN_SECRET)
+    .update([userId, sha256Hex(transcript), String(framework), String(expiry)].join('|'))
+    .digest('hex')
+}
+function issueRetryToken(userId, transcript, framework) {
+  if (!process.env.RETRY_TOKEN_SECRET) {
+    console.error('RETRY_TOKEN_SECRET not set — retry tokens cannot be issued, retries will fail')
+    return null
+  }
+  const expiry = Date.now() + RETRY_TOKEN_TTL_MS
+  return expiry + '.' + retrySignature(userId, transcript, framework, expiry)
+}
+function verifyRetryToken(userId, transcript, framework, token) {
+  if (!process.env.RETRY_TOKEN_SECRET) {
+    console.error('RETRY_TOKEN_SECRET not set — retries are disabled')
+    return false
+  }
+  if (typeof token !== 'string') return false
+  const parts = token.split('.')
+  if (parts.length !== 2 || !/^\d+$/.test(parts[0]) || !/^[0-9a-f]{64}$/.test(parts[1])) return false
+  const expiry = Number(parts[0])
+  if (expiry < Date.now()) return false
+  const expected = Buffer.from(retrySignature(userId, transcript, framework, expiry), 'hex')
+  return crypto.timingSafeEqual(expected, Buffer.from(parts[1], 'hex'))
+}
+
+// Supabase REST with the service role (bypasses RLS). Used only to read and
+// bump the caller's own profile row; the caller's identity comes from
+// verifyUser(), never from the request body.
+function supabaseService(method, path, body, extraHeaders) {
+  return new Promise((resolve, reject) => {
+    const data = body ? JSON.stringify(body) : null
+    const headers = Object.assign({
+      'Content-Type': 'application/json',
+      'apikey': process.env.SUPABASE_SERVICE_KEY,
+      'Authorization': 'Bearer ' + process.env.SUPABASE_SERVICE_KEY,
+    }, extraHeaders || {})
+    if (data) headers['Content-Length'] = Buffer.byteLength(data)
+    const req = https.request({ hostname: SUPA_HOST, path: path, method: method, headers: headers }, (res) => {
+      let raw = ''
+      res.on('data', chunk => raw += chunk)
+      res.on('end', () => resolve({ status: res.statusCode, body: raw }))
+    })
+    req.on('error', reject)
+    req.setTimeout(8000, () => { req.destroy(); reject(new Error('Timeout')) })
+    if (data) req.write(data)
+    req.end()
+  })
+}
+
+// Returns { known: true, count, isPro, exists } or { known: false } if the
+// profile could not be read (the caller decides what to do about that).
+async function readProfile(userId) {
+  try {
+    const res = await supabaseService('GET', '/rest/v1/profiles?id=eq.' + encodeURIComponent(userId) + '&select=eval_count,is_pro', null)
+    if (res.status !== 200) return { known: false }
+    const rows = JSON.parse(res.body)
+    if (!rows.length) return { known: true, exists: false, count: 0, isPro: false }
+    return { known: true, exists: true, count: rows[0].eval_count || 0, isPro: !!rows[0].is_pro }
+  } catch (e) {
+    return { known: false }
+  }
+}
+
+// Compare-and-set increment: only writes if the count is still what we read,
+// so two evaluations finishing at once cannot both write the same number.
+// Re-reads and retries a couple of times on conflict.
+async function bumpEvalCount(userId, profile) {
+  let count = profile.count
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await supabaseService(
+        'PATCH',
+        '/rest/v1/profiles?id=eq.' + encodeURIComponent(userId) + '&eval_count=eq.' + count,
+        { eval_count: count + 1 },
+        { 'Prefer': 'return=representation' }
+      )
+      if (res.status >= 200 && res.status < 300) {
+        const rows = res.body ? JSON.parse(res.body) : []
+        if (rows.length) return true
+      } else {
+        return false
+      }
+    } catch (e) { return false }
+    const fresh = await readProfile(userId)
+    if (!fresh.known || !fresh.exists) return false
+    count = fresh.count
+  }
+  return false
+}
 
 // Same verifyUser pattern already used in team-invite.js/team-dashboard.js/
 // ae-drilldown.js — asks Supabase Auth who a bearer token belongs to.
@@ -185,17 +303,49 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' }
 
   try {
-    let { transcript, framework, customFields, dealName, persona, mode, dealStage, sections: onlySections, includeNextSteps: wantNextSteps } = JSON.parse(event.body)
+    let { transcript, framework, customFields, dealName, persona, mode, dealStage, sections: onlySections, includeNextSteps: wantNextSteps, retry_token: retryTokenIn } = JSON.parse(event.body)
 
     // LegalFly is private to one account. Checked before anything else
     // touches the framework — before FW_FIELDS/FW_DESC are even looked
     // up — so a rejected request never gets near assembling the LegalFly
     // methodology into a prompt. Applies to both quick and full mode.
+    const authHeader = event.headers.authorization || event.headers.Authorization
+    let caller
     if (framework === 'LegalFly') {
-      const caller = await verifyUser(event.headers.authorization || event.headers.Authorization)
+      caller = await verifyUser(authHeader)
       const callerEmail = caller && caller.email ? caller.email.toLowerCase() : null
       if (callerEmail !== LEGALFLY_ALLOWED_EMAIL.toLowerCase()) {
         return { statusCode: 403, body: JSON.stringify({ error: 'This framework is not available.' }) }
+      }
+    }
+
+    // Sign-in gate. Signed-out visitors may score only the built-in demo
+    // transcript; the demo path never touches the free-tier count.
+    // Signed-in users keep FREE_LIMIT evaluations, then get a 402.
+    //  - quick mode starts an evaluation: checked, and counted after it succeeds.
+    //  - full mode (first pass) is the same evaluation: checked, never counted.
+    //  - a `sections` subset is a retry of failed sections: it needs a valid
+    //    retry_token (issued by an allowed full pass for this same user,
+    //    transcript and framework), and is neither checked nor counted.
+    // If the profile cannot be read (a Supabase hiccup) the evaluation is
+    // allowed and not counted rather than blocking everyone.
+    let profile = null
+    const isDemo = isDemoTranscript(transcript)
+    const isRetryCall = mode !== 'quick' && Array.isArray(onlySections) && onlySections.length > 0
+    if (!isDemo) {
+      if (caller === undefined) caller = await verifyUser(authHeader)
+      if (!caller) {
+        return { statusCode: 401, body: JSON.stringify({ error: 'sign_in_required' }) }
+      }
+      if (isRetryCall) {
+        if (!verifyRetryToken(caller.id, transcript, framework, retryTokenIn)) {
+          return { statusCode: 403, body: JSON.stringify({ error: 'retry_not_allowed' }) }
+        }
+      } else {
+        profile = await readProfile(caller.id)
+        if (profile.known && !profile.isPro && profile.count >= FREE_LIMIT) {
+          return { statusCode: 402, body: JSON.stringify({ error: 'upgrade_required' }) }
+        }
       }
     }
 
@@ -321,6 +471,12 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
 
       if (quickResult.error) {
         return { statusCode: 502, body: JSON.stringify({ error: quickResult.error }) }
+      }
+
+      // One evaluation counted per successful quick pass (never for the demo).
+      if (profile && profile.known && profile.exists) {
+        const counted = await bumpEvalCount(caller.id, profile)
+        if (!counted) console.error('eval_count could not be incremented for user', caller.id)
       }
 
       return {
@@ -476,6 +632,10 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
     })
     const results = await Promise.all(calls)
 
+    // A full pass that was allowed gets a retry token for this exact user,
+    // transcript and framework (see retry tokens above). Never for the demo.
+    const retryTokenOut = (caller && !isDemo && !isRetryCall) ? issueRetryToken(caller.id, transcript, framework) : null
+
     // Discard the transcript now that the API calls are done — it must not
     // be held in memory any longer than the request needs it for.
     transcript = null
@@ -525,6 +685,7 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
       merged.failed_sections = failedNames
       merged.needs_next_steps = !lastResult
     }
+    if (retryTokenOut) merged.retry_token = retryTokenOut
 
     return {
       statusCode: 200,

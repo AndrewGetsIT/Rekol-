@@ -7,6 +7,11 @@ const { makeWorld } = require('./helpers/backend')
 
 const MEDDIC = ['Metrics', 'Economic Buyer', 'Decision Criteria', 'Decision Process', 'Identify Pain', 'Champion']
 const req = (extra) => event(Object.assign({ transcript: SAMPLE_TRANSCRIPT, framework: 'MEDDIC', customFields: [], mode: 'full' }, extra), 'tok-user')
+// subset (retry) calls need the retry_token a normal full pass returns for the same user + transcript + framework
+async function retryReq(handler, extra) {
+  const first = JSON.parse((await handler(req())).body)
+  return req(Object.assign({ retry_token: first.retry_token }, extra))
+}
 const world = (anthropic) => makeWorld({
   users: USERS,
   anthropic,
@@ -52,13 +57,15 @@ test('a subset call scores only the requested sections, in one model call', asyn
   const w = world({})
   try {
     const { handler } = loadFunction('evaluate')
-    const res = await handler(req({ sections: ['Champion', 'Decision Process', 'Identify Pain'], includeNextSteps: true }))
+    const rq = await retryReq(handler, { sections: ['Champion', 'Decision Process', 'Identify Pain'], includeNextSteps: true })
+    const before = w.anthropicCalls().length
+    const res = await handler(rq)
     assert.strictEqual(res.statusCode, 200)
     const data = JSON.parse(res.body)
     assert.deepStrictEqual(data.sections.map((s) => s.name), ['Decision Process', 'Identify Pain', 'Champion'])
     assert.strictEqual(data.next_steps.length, 3)
     assert.strictEqual(data.failed_sections, undefined)
-    const calls = w.anthropicCalls()
+    const calls = w.anthropicCalls().slice(before)
     assert.strictEqual(calls.length, 1)
     const schema = calls[0].tools[0].input_schema.properties.sections
     assert.deepStrictEqual(schema.items.properties.name.enum, ['Decision Process', 'Identify Pain', 'Champion'])
@@ -71,9 +78,11 @@ test('a subset call does not ask for next_steps unless told to', async () => {
   const w = world({})
   try {
     const { handler } = loadFunction('evaluate')
-    const data = JSON.parse((await handler(req({ sections: ['Metrics'] }))).body)
+    const rq = await retryReq(handler, { sections: ['Metrics'] })
+    const before = w.anthropicCalls().length
+    const data = JSON.parse((await handler(rq)).body)
     assert.deepStrictEqual(data.next_steps, [])
-    assert.ok(!w.anthropicCalls()[0].tools[0].input_schema.properties.next_steps)
+    assert.ok(!w.anthropicCalls()[before].tools[0].input_schema.properties.next_steps)
   } finally { w.restore() }
 })
 
@@ -81,8 +90,10 @@ test('a subset of more than 3 sections is still batched at most 3 per call', asy
   const w = world({})
   try {
     const { handler } = loadFunction('evaluate')
-    assert.strictEqual((await handler(req({ sections: MEDDIC.slice(0, 5) }))).statusCode, 200)
-    w.anthropicCalls().forEach((c) => assert.ok(c.tools[0].input_schema.properties.sections.maxItems <= 3))
+    const rq = await retryReq(handler, { sections: MEDDIC.slice(0, 5) })
+    const before = w.anthropicCalls().length
+    assert.strictEqual((await handler(rq)).statusCode, 200)
+    w.anthropicCalls().slice(before).forEach((c) => assert.ok(c.tools[0].input_schema.properties.sections.maxItems <= 3))
   } finally { w.restore() }
 })
 
@@ -90,9 +101,11 @@ test('invalid subsets are refused with 400 before any model call', async () => {
   const w = world({})
   try {
     const { handler } = loadFunction('evaluate')
+    const first = JSON.parse((await handler(req())).body)
+    const before = w.anthropicCalls().length
     for (const bad of [['Not A Section'], ['Metrics', 'Metrics'], ['Metrics', 7]]) {
-      assert.strictEqual((await handler(req({ sections: bad }))).statusCode, 400, JSON.stringify(bad))
+      assert.strictEqual((await handler(req({ retry_token: first.retry_token, sections: bad }))).statusCode, 400, JSON.stringify(bad))
     }
-    assert.strictEqual(w.anthropicCalls().length, 0)
+    assert.strictEqual(w.anthropicCalls().length, before)
   } finally { w.restore() }
 })

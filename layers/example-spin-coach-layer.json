@@ -1,0 +1,50 @@
+{
+  "context": "Reps sell B2B services to operations leaders at mid-sized UK companies. A good discovery call uncovers a costed problem in the prospect's own words before any solution is mentioned, and ends with a dated next step that involves the person who controls budget.",
+  "voice": "Direct and encouraging. British English. One concrete fix per point. No jargon.",
+  "scoring": { "green_min": 70, "amber_min": 40 },
+  "sections": [
+    {
+      "name": "Situation",
+      "what_good_looks_like": "Two or three focused questions that establish the current process, team size and tools, without turning into an interrogation.",
+      "evidence_rules": "Score on questions asked and answers given. Facts the rep already knew from research count only if the rep confirms them aloud.",
+      "red_flags": "More than five situation questions in a row, or asking for information that is on the prospect's website.",
+      "coaching_language": "Trim the fact-finding. Pick the two questions that set up the problem and move on.",
+      "crm_field": "Current situation"
+    },
+    {
+      "name": "Problem",
+      "what_good_looks_like": "The prospect names a specific difficulty or dissatisfaction in their own words.",
+      "evidence_rules": "Must be a statement from the prospect, not the rep suggesting it.",
+      "red_flags": "Rep supplies the problem and the prospect only agrees.",
+      "coaching_language": "Let them say it. Ask what is hardest about it today and wait.",
+      "critical": true,
+      "crm_field": "Pain"
+    },
+    {
+      "name": "Implication",
+      "what_good_looks_like": "The rep explores the knock-on cost of the problem: time, money, risk or people, ideally with a number the prospect gives.",
+      "evidence_rules": "Green needs a quantified or clearly costed consequence stated by the prospect.",
+      "red_flags": "Jumping from problem straight to the product.",
+      "coaching_language": "Before you pitch, ask what that costs them each month and who else feels it.",
+      "critical": true,
+      "crm_field": "Business impact"
+    },
+    {
+      "name": "Need-payoff",
+      "what_good_looks_like": "The prospect describes the value of solving it, in their words.",
+      "evidence_rules": "A statement of benefit from the prospect, not a claim from the rep.",
+      "red_flags": "Rep lists features as benefits.",
+      "coaching_language": "Ask what it would mean for them if this were fixed, then use their words in the follow-up.",
+      "crm_field": "Desired outcome"
+    },
+    {
+      "name": "Next step",
+      "what_good_looks_like": "A dated, specific next step agreed on the call, involving the budget holder where possible.",
+      "evidence_rules": "A date or day and an action both appear in the transcript.",
+      "red_flags": "'I'll send something over' with no date.",
+      "coaching_language": "Book it while you are both on the call, and ask who else should be there.",
+      "critical": true,
+      "crm_field": "Next step"
+    }
+  ]
+}

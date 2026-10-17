@@ -1,0 +1,10 @@
+{
+  "name": "rekol-dev-tests",
+  "private": true,
+  "description": "Dev-only test harness for Rekol. Nothing here is deployed: Netlify builds from the Rekol/ folder.",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:db": "bash supabase/tests/run_tests.sh"
+  },
+  "engines": { "node": ">=20" }
+}

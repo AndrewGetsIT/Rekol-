@@ -22,7 +22,8 @@ Branch `autopilot/quick-wins`. Nothing merged, nothing pushed to `main`, product
 | 0B hardening 2d profile billing guard (SQL + DB tests) | done, NOT applied | DB suite 103 checks ALL TESTS PASSED + PROFILE GUARD TESTS PASSED |
 | 0E Copy for HubSpot | done | 8 tests (91 total) |
 | 0C Analytics (Plausible) | done | 9 tests (100 total) |
-| 0A, Phases 2-6 | not started yet | - |
+| 0A Prompt caching (PROMPT_CACHE, default off) | done | 11 tests (111 total) |
+| Phases 2-6 | not started (separate run 3) | - |
 
 Totals at last commit: `npm test` 83 passed; DB suite 103 checks passed.
 
@@ -73,6 +74,14 @@ None reverted. Run stopped after 0B hardening; see step 3 below if more was done
 - Plausible script for `getrekol.com` added; the commented-out GA tag removed. Nothing records until you create the Plausible site. To see `framework`/`mode` in the dashboard, add them as custom properties in Plausible.
 - `signin_completed` only fires for a sign-in that followed a prompt in the same tab (sessionStorage flag), so a magic link opened in a new tab is not counted. This undercounts rather than over-counts.
 - Events: demo_run, eval_started, eval_completed (once per evaluation, when all sections loaded, including via retry), eval_failed, signin_prompted, signin_completed, paywall_shown, share_created, team_created, crm_copied. A test asserts every one fires somewhere and that no property other than a built-in framework name and quick/full mode can be sent.
+
+## 4d. 0A notes (prompt caching)
+
+- **Default is off**: with `PROMPT_CACHE` unset or anything but `on`, requests are exactly as before (a test pins this). To try it: set `PROMPT_CACHE=on` in Netlify, run a few evaluations, and read the Netlify function logs for lines like `Full mode (group 1/2) usage — input: .. output: .. cache_write: .. cache_read: ..` (numbers only, no text). Compare cost per evaluation with it on and off for a week and keep the cheaper.
+- **Check this first:** for `claude-haiku-4-5` the minimum cacheable prefix is **4,096 tokens**. Typical transcripts (a few hundred to a couple of thousand words) plus the framework text are below that, so `cache_write` will read 0 on every call and caching cannot help; leave it off. It only matters for long transcripts or LegalFly.
+- When on: every call for one evaluation shares an identical `tools` array (both tools; the section tool lists all of the framework's section names) and an identical `system` block (shared instructions + full framework + transcript) with `cache_control` on that block, after the transcript. Only the short user message differs per call. `tool_choice` still forces the right tool per call; per Anthropic's rules changing `tool_choice` leaves the tools+system cache valid.
+- Behaviour differences when on (and why): (1) quick mode uses the full framework text, so LegalFly's shorter quick-only summary is not used (needed for an identical prefix; MEDDIC/BANT/SPIN/Custom are unchanged); (2) the per-batch section-name enum and exact item count in the tool schema cannot be per-batch in a shared schema, so the server now checks that each batch returned exactly its assigned sections (a wrong set is retried/failed like any malformed result); the instruction still says how many entries to return; (3) the first full-mode batch gets a ~1s head start before the others launch (skipped for transcripts over 60,000 characters). The browser still sends the quick and full requests as two separate parallel requests, so quick vs full sharing a cache entry is opportunistic.
+- Not measurable here: actual cache hit rates and cost (needs live traffic). Scores/prompts under the flag were only checked with the fake model, not against the real one; compare a few evaluations side by side before leaving it on.
 
 ## 7. Not done in this run
 

@@ -83,7 +83,9 @@ function makeWorld(world = {}) {
       return user ? { status: 200, body: JSON.stringify(user) } : { status: 401, body: '{"msg":"invalid"}' }
     }
     if (rec.hostname === 'api.anthropic.com' && rec.path === '/v1/messages') {
-      return fakeAnthropic(rec.json, world.anthropic || {}, anthropicState)
+      const r = fakeAnthropic(rec.json, world.anthropic || {}, anthropicState)
+      const d = world.anthropic && world.anthropic.delay ? world.anthropic.delay(rec.json) : 0
+      return d ? new Promise((resolve) => setTimeout(() => resolve(r), d)) : r
     }
     if (rec.hostname === SUPA_HOST && rec.path.startsWith('/rest/v1/rpc/')) {
       const fn = rec.path.slice('/rest/v1/rpc/'.length).split('?')[0]

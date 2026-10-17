@@ -28,6 +28,12 @@ function isDemoTranscript(t) { return sha256Hex(t) === DEMO_TRANSCRIPT_SHA256 }
 // display, so clearing localStorage no longer resets anything.
 const FREE_LIMIT = 10
 
+// Prompt caching stagger (only used when PROMPT_CACHE=on): how long the first
+// full-mode batch gets to start before the others launch, and the transcript
+// size above which the stagger is skipped to protect the time budget.
+const CACHE_STAGGER_MS = 1000
+const CACHE_STAGGER_MAX_CHARS = 60000
+
 // Retry tokens. Re-scoring failed sections (a `sections` subset) is not
 // metered, so it must not be usable as a free way to score a new
 // transcript. A full pass that was allowed (signed in, under the limit)
@@ -159,7 +165,7 @@ function verifyUser(authHeader) {
   })
 }
 
-function post(data) {
+function post(data, onStart) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify(data)
     const options = {
@@ -174,6 +180,7 @@ function post(data) {
       },
     }
     const req = https.request(options, (res) => {
+      if (onStart) onStart()
       let raw = ''
       res.on('data', chunk => raw += chunk)
       res.on('end', () => resolve({ status: res.statusCode, body: raw }))
@@ -246,13 +253,27 @@ const MIN_REMAINING_FOR_RETRY_MS = 20000
 // guard, by which point there's no time budget left to retry just that
 // one call — the whole eval fails instead of quietly retrying the one
 // piece that needed it.
-async function postToolCall(payload, label, startTime, expectedSectionCount) {
+// Logs token usage for a call: numbers only, never any request or response text.
+// cache_creation stays 0 on every call when the shared prefix is below the
+// model's minimum cacheable length (4096 tokens for Haiku 4.5), which is the
+// signal that caching cannot help at this transcript size.
+function logUsage(label, usage) {
+  if (!usage) return
+  console.log(label + ' usage — input:', usage.input_tokens, 'output:', usage.output_tokens,
+    'cache_write:', usage.cache_creation_input_tokens || 0, 'cache_read:', usage.cache_read_input_tokens || 0)
+}
+
+// opts (optional): { onStart } fires when the response begins; { expectedNames }
+// requires every returned section name to be one of the names this call was
+// assigned, exactly once (the shared cached tool schema cannot enforce that per
+// batch the way the per-call schema's enum does, so it is checked here).
+async function postToolCall(payload, label, startTime, expectedSectionCount, opts) {
   let attempt = 0
   while (true) {
     attempt++
     let response
     try {
-      response = await post(payload)
+      response = await post(payload, opts && opts.onStart)
     } catch (err) {
       console.error(label + ' request failed:', err.message)
       return { error: label + ' — request failed: ' + err.message, status: null }
@@ -273,6 +294,7 @@ async function postToolCall(payload, label, startTime, expectedSectionCount) {
 
     try {
       const data = JSON.parse(response.body)
+      logUsage(label, data.usage)
       const toolUse = (data.content || []).find(c => c.type === 'tool_use')
       if (!toolUse || typeof toolUse.input !== 'object' || toolUse.input === null) {
         throw new Error('No tool_use result in response (stop_reason: ' + data.stop_reason + ')')
@@ -282,6 +304,11 @@ async function postToolCall(payload, label, startTime, expectedSectionCount) {
         if (!Array.isArray(secs) || secs.length !== expectedSectionCount) {
           throw new Error('Expected ' + expectedSectionCount + ' sections, got ' + (Array.isArray(secs) ? secs.length : typeof secs) + ' (stop_reason: ' + data.stop_reason + ')')
         }
+      }
+      if (opts && opts.expectedNames) {
+        const names = (toolUse.input.sections || []).map(x => x && x.name)
+        const ok = names.every(n => opts.expectedNames.includes(n)) && new Set(names).size === names.length
+        if (!ok) throw new Error('Returned sections do not match the ones assigned to this call')
       }
       return { result: toolUse.input }
     } catch (e) {
@@ -427,6 +454,79 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
       fwDescQuick = FW_DESC_QUICK[framework] ? (framework + ' (context): ' + FW_DESC_QUICK[framework]) : fwDesc
     }
 
+    const quickTool = {
+      name: 'submit_quick_eval',
+      description: 'Submit the quick evaluation score and summary for this sales call.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          overall_score: { type: 'integer', description: 'Overall deal health, scored honestly 0-100' },
+          summary: { type: 'string', description: 'Honest 2-3 sentence deal assessment' },
+        },
+        required: ['overall_score', 'summary'],
+      },
+    }
+
+    // PROMPT CACHING (env PROMPT_CACHE=on; default off, in which case every
+    // request below is exactly as it always was). When on, every call for one
+    // evaluation — the quick pass and each full-mode batch — carries the SAME
+    // prefix: identical `tools` (both tools, section names constrained to the
+    // whole framework) and an identical `system` block holding the shared
+    // instructions, the full framework definition and the transcript, with the
+    // cache breakpoint on that block (so it sits after the transcript).
+    // Only the short user message differs per call (quick instructions, or
+    // "score only these sections: ..."). tool_choice still forces the right
+    // tool per call; changing tool_choice does not invalidate the cached
+    // tools + system prefix. Quick mode uses the full framework text here
+    // (LegalFly's shorter quick-only summary would break the identical prefix).
+    const cacheOn = process.env.PROMPT_CACHE === 'on'
+    const MODEL = 'claude-haiku-4-5-20251001'
+    const cachedSystem = () => [{
+      type: 'text',
+      text: [
+        'You are an expert enterprise sales coach. Analyse the call transcript below. The instruction after the transcript says which tool to call.',
+        '',
+        'Framework: ' + fwDesc,
+        dealName ? 'Deal: ' + dealName : '',
+        persona ? 'People on the call: ' + persona : '',
+        stageLine,
+        '',
+        'Transcript:',
+        transcript,
+      ].filter(Boolean).join('\n'),
+      cache_control: { type: 'ephemeral' },
+    }]
+    const cachedSectionTool = () => ({
+      name: 'submit_section_eval',
+      description: 'Submit the structured section-by-section evaluation for this sales call.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          sections: {
+            type: 'array',
+            uniqueItems: true,
+            description: 'MUST be a JSON array of section objects — never a string, never an object. Exactly the sections named in the instruction, no more and no fewer.',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', enum: sections, description: 'Must be exactly one of the section names assigned in the instruction' },
+                score: { type: 'integer', description: '0-100' },
+                status: { type: 'string', enum: ['red', 'amber', 'green'], description: 'red=0-40, amber=41-70, green=71-100' },
+                covered: { type: 'string', description: 'What was discussed, or "Not addressed" if absent' },
+                gaps: { type: 'string', description: 'Specific gaps or missing information' },
+                coaching: { type: 'string', description: 'One actionable coaching tip, tailored to personas if provided' },
+                next_step: { type: 'string', description: 'One concrete next action' },
+              },
+              required: ['name', 'score', 'status', 'covered', 'gaps', 'coaching', 'next_step'],
+            },
+          },
+          next_steps: { type: 'array', items: { type: 'string' }, description: 'Three concrete next actions for the deal overall (only when the instruction asks for them)' },
+        },
+        required: ['sections'],
+      },
+    })
+    const cachedTools = () => [quickTool, cachedSectionTool()]
+
     // QUICK MODE — just score + summary, fast response
     if (mode === 'quick') {
       const quickPrompt = [
@@ -443,27 +543,22 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
         'Be direct and specific. Score 0-100 honestly.'
       ].filter(Boolean).join('\n')
 
-      const quickTool = {
-        name: 'submit_quick_eval',
-        description: 'Submit the quick evaluation score and summary for this sales call.',
-        input_schema: {
-          type: 'object',
-          properties: {
-            overall_score: { type: 'integer', description: 'Overall deal health, scored honestly 0-100' },
-            summary: { type: 'string', description: 'Honest 2-3 sentence deal assessment' },
-          },
-          required: ['overall_score', 'summary'],
-        },
-      }
-
       console.log('Quick mode — framework:', framework)
-      const quickResult = await postToolCall({
-        model: 'claude-haiku-4-5-20251001',
+      const quickPayload = cacheOn ? {
+        model: MODEL,
+        max_tokens: 500,
+        tools: cachedTools(),
+        system: cachedSystem(),
+        tool_choice: { type: 'tool', name: 'submit_quick_eval' },
+        messages: [{ role: 'user', content: 'Call submit_quick_eval with your assessment.\n\nBe direct and specific. Score 0-100 honestly.' }],
+      } : {
+        model: MODEL,
         max_tokens: 500,
         tools: [quickTool],
         tool_choice: { type: 'tool', name: 'submit_quick_eval' },
         messages: [{ role: 'user', content: quickPrompt }],
-      }, 'Quick mode', startTime)
+      }
+      const quickResult = await postToolCall(quickPayload, 'Quick mode', startTime)
 
       // Discard the transcript now that the API call is done — it must not
       // be held in memory any longer than the request needs it for.
@@ -620,17 +715,58 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
     // empty sections array under the old ceiling. The extra headroom only
     // matters when a call actually needs it; it doesn't add latency to
     // calls that don't.
-    const calls = groups.map((secs, i) => {
+    // Mode-specific user message for a cached call (the part after the cache breakpoint).
+    const cachedBatchInstruction = (secs, includeNextSteps) => [
+      'Call submit_section_eval with your assessment.',
+      '',
+      sections.length > secs.length
+        ? 'Only evaluate these specific sections of the framework — a separate pass covers the rest: ' + secs.join(', ')
+        : 'Evaluate these sections: ' + secs.join(', '),
+      'Your submit_section_eval call must include exactly ' + secs.length + ' entries in the sections array — one per section listed above, no more and no fewer. The `sections` field itself must be a real array value, the way the tool schema defines it — never a string, and never a JSON-encoded/stringified version of the array.',
+      persona ? 'Tailor coaching tips to the specific personas on the call.' : '',
+      '',
+      'Be specific and honest' + (includeNextSteps ? ', and include three concrete next steps for the deal overall in next_steps' : '') + '. If something was not in the transcript, say so clearly.'
+    ].filter(Boolean).join('\n')
+
+    const runGroup = (secs, i, onStart) => {
       const includeNextSteps = i === groups.length - 1 && (!isSubsetCall || wantNextSteps === true)
+      const label = 'Full mode (group ' + (i + 1) + '/' + groups.length + ')'
+      if (cacheOn) {
+        return postToolCall({
+          model: MODEL,
+          max_tokens: 5000,
+          tools: cachedTools(),
+          system: cachedSystem(),
+          tool_choice: { type: 'tool', name: 'submit_section_eval' },
+          messages: [{ role: 'user', content: cachedBatchInstruction(secs, includeNextSteps) }],
+        }, label, startTime, secs.length, { onStart: onStart, expectedNames: secs })
+      }
       return postToolCall({
-        model: 'claude-haiku-4-5-20251001',
+        model: MODEL,
         max_tokens: 5000,
         tools: [sectionTool(secs, includeNextSteps)],
         tool_choice: { type: 'tool', name: 'submit_section_eval' },
         messages: [{ role: 'user', content: buildPrompt(secs, includeNextSteps) }],
-      }, 'Full mode (group ' + (i + 1) + '/' + groups.length + ')', startTime, secs.length)
-    })
-    const results = await Promise.all(calls)
+      }, label, startTime, secs.length)
+    }
+
+    let results
+    if (cacheOn && groups.length > 1 && transcript.length <= CACHE_STAGGER_MAX_CHARS) {
+      // A cache entry only becomes readable once the request that writes it has
+      // begun responding, so launch the first batch, give it up to ~1s to start
+      // (or until its response begins), then launch the rest so they can read
+      // the shared prefix instead of each writing their own. For very long
+      // transcripts the stagger is skipped so the total stays inside the time
+      // budget (accepting fewer cache hits).
+      let started
+      const startedP = new Promise(resolve => { started = resolve })
+      const first = runGroup(groups[0], 0, started)
+      await Promise.race([startedP, new Promise(resolve => setTimeout(resolve, CACHE_STAGGER_MS))])
+      const rest = groups.slice(1).map((secs, k) => runGroup(secs, k + 1))
+      results = await Promise.all([first].concat(rest))
+    } else {
+      results = await Promise.all(groups.map((secs, i) => runGroup(secs, i)))
+    }
 
     // A full pass that was allowed gets a retry token for this exact user,
     // transcript and framework (see retry tokens above). Never for the demo.

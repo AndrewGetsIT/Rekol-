@@ -830,6 +830,7 @@ function applyGongGate(){
 }
 
 function go(v){
+  if(pendingEvalSave&&v!=='output') persistEval();
   if((v==='trends'||v==='history')&&isManagerOnly()) v='manager';
   document.querySelectorAll('.view').forEach(function(e){e.classList.remove('on')});
   document.getElementById('v-'+v).classList.add('on');
@@ -841,6 +842,7 @@ function go(v){
   if(v==='manager')renderManagerView();
 }
 window.addEventListener('scroll',function(){document.getElementById('nav').classList.toggle('scrolled',window.scrollY>20)});
+window.addEventListener('pagehide',function(){if(pendingEvalSave)persistEval()});
 
 // LegalFly is private to one account (see the matching gate in
 // evaluate.js, which is the real security boundary — this is a UX
@@ -1006,26 +1008,108 @@ async function runEval(){
     if(!customFields.length){toast('Add at least one field with a name.');return}
   }
   go('loading');animSteps();
+  var secNames=fw==='Custom'?customFields.map(function(f){return typeof f==='object'?f.name:f}):getFwFields();
+  // Held in memory only (never stored) so that, if one batch of the full
+  // pass fails, just those sections can be re-scored without re-pasting.
+  lastRun={transcript:transcript,framework:fw,customFields:customFields,dealName:dealName,persona:persona,dealStage:dealStage,sectionNames:secNames};
+  evalRunState={failed:[],needsNext:false};evalSaved=false;pendingEvalSave=false;
+  // Fire both calls in parallel — quick resolves first for the score,
+  // full keeps running in the background for sections/next steps
+  var quickPromise=callAPI(transcript,fw,customFields,dealName,persona,'quick',dealStage);
+  var fullPromise=callAPI(transcript,fw,customFields,dealName,persona,'full',dealStage);
+  fullPromise.catch(function(){}); // handled below; avoids an unhandled rejection if quick fails first
+
+  // Only a failed quick pass sends the user back to the form (transcript
+  // still in the box). Once the score exists it stays on screen no matter
+  // what happens to the full pass.
+  var quick;
   try{
-    // Fire both calls in parallel — quick resolves first for the score,
-    // full keeps running in the background for sections/next steps
-    var quickPromise=callAPI(transcript,fw,customFields,dealName,persona,'quick',dealStage);
-    var fullPromise=callAPI(transcript,fw,customFields,dealName,persona,'full',dealStage);
+    quick=await quickPromise;
+  }catch(e){
+    go('home');toast('Something went wrong — please try again. Your transcript is still there.',5000);console.error(e);
+    return;
+  }
+  curEval=Object.assign({},quick,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid(),sections:[],next_steps:[]});
+  renderOut(curEval);go('output');
 
-    var quick=await quickPromise;
-    curEval=Object.assign({},quick,{fw:fw,dealName:dealName,persona:persona,date:new Date().toISOString(),id:uid(),sections:[],next_steps:[]});
-    renderOut(curEval);go('output');
+  showSectionSkeletons(secNames);
+  var full;
+  try{
+    full=await fullPromise;
+  }catch(e){
+    console.error(e);
+    // The whole full pass failed (network, or every batch): keep the score,
+    // mark every section as not scored and offer the retry.
+    full={sections:[],next_steps:[],failed_sections:secNames.slice(),needs_next_steps:true};
+  }
+  curEval.sections=full.sections||[];
+  curEval.next_steps=full.next_steps||[];
+  evalRunState.failed=(full.failed_sections||[]).slice();
+  evalRunState.needsNext=!!full.needs_next_steps;
+  renderSections(curEval,true,evalRunState.failed);
 
-    showSectionSkeletons(fw==='Custom'?customFields.map(function(f){return typeof f==='object'?f.name:f}):getFwFields());
-    var full=await fullPromise;
-    curEval.sections=full.sections||[];
-    curEval.next_steps=full.next_steps||[];
-    renderSections(curEval);
+  // The evaluation happened once, however many sections loaded. Retrying
+  // failed sections later never counts again.
+  evalCount++;sl('rekol_count',evalCount.toString());syncEvalCount();
+  updateLimitBar();
+  if(!hadEval){hadEval=true;sl('rekol_evald','1')}
+  if(evalRunState.failed.length){
+    // Some sections failed: hold the save so a successful retry can write
+    // the complete record. It is written when the user leaves this screen
+    // (see go()) or when everything has loaded, whichever comes first.
+    pendingEvalSave=true;
+  }else{
+    persistEval();
+  }
+}
 
-    evalCount++;sl('rekol_count',evalCount.toString());syncEvalCount();
-    saveHist(curEval);updateLimitBar();
-    if(!hadEval){hadEval=true;sl('rekol_evald','1')}
-  }catch(e){go('home');toast('Something went wrong — please try again. Your transcript is still there.',5000);console.error(e)}
+var lastRun=null,evalRunState={failed:[],needsNext:false},evalSaved=false,pendingEvalSave=false;
+
+// Writes the current evaluation to local history and (when signed in) the
+// account, exactly once. If some sections never loaded, what exists is
+// saved and section_status records which sections failed.
+function persistEval(){
+  if(!curEval||evalSaved)return;
+  evalSaved=true;pendingEvalSave=false;
+  upsertHist(curEval);
+  if(signedIn){
+    var status=null;
+    if(evalRunState.failed.length&&lastRun){
+      status={};
+      lastRun.sectionNames.forEach(function(n){status[n]=evalRunState.failed.indexOf(n)===-1?'done':'failed'});
+    }
+    syncEvalToSupabase(curEval,status);
+    document.getElementById('digest-nudge').style.display=digestEnabled?'none':'flex';
+  }
+}
+
+// Re-scores only the sections that failed. Never counts as a new evaluation.
+async function retryFailedSections(){
+  if(!lastRun||!curEval||!evalRunState.failed.length)return;
+  var names=evalRunState.failed.slice(),needNext=evalRunState.needsNext;
+  setRetryButtons(true);
+  try{
+    var data=await callAPI(lastRun.transcript,lastRun.framework,lastRun.customFields,lastRun.dealName,lastRun.persona,'full',lastRun.dealStage,{sections:names,includeNextSteps:needNext});
+    var have={};
+    curEval.sections.forEach(function(sec){have[sec.name]=sec});
+    (data.sections||[]).forEach(function(sec){if(sec&&sec.name&&!have[sec.name])have[sec.name]=sec});
+    curEval.sections=lastRun.sectionNames.map(function(n){return have[n]}).filter(Boolean);
+    if(needNext&&Array.isArray(data.next_steps)&&data.next_steps.length){curEval.next_steps=data.next_steps;evalRunState.needsNext=false}
+    evalRunState.failed=lastRun.sectionNames.filter(function(n){return !have[n]});
+    renderSections(curEval,true,evalRunState.failed);
+    if(!evalRunState.failed.length){persistEval()}
+    else{toast('Some sections still could not be scored. You can retry again.')}
+  }catch(e){
+    console.error(e);
+    setRetryButtons(false);
+    toast('Could not score those sections yet — please try again.');
+  }
+}
+
+function setRetryButtons(busy){
+  document.querySelectorAll('#sec-cards [data-retry-sections]').forEach(function(b){
+    b.disabled=busy;b.textContent=busy?'Retrying…':'Retry';
+  });
 }
 
 function getFwFields(){
@@ -1048,11 +1132,40 @@ function showSectionSkeletons(sections){
     '<div class="skel-next"><div class="skel-spin"></div><div class="skel-next-line" style="max-width:72%"></div></div>';
 }
 
-function renderSections(ev,silent){
-  document.getElementById('out-h').textContent='Evaluation complete';
+// failedNames (optional): sections that did not load. They get a neutral
+// "not scored" card with a Retry button instead of a red/amber/green one.
+function renderSections(ev,silent,failedNames){
+  var failed=failedNames||[];
+  document.getElementById('out-h').textContent=failed.length?'Evaluation partly complete':'Evaluation complete';
   var cards=document.getElementById('sec-cards');
   cards.innerHTML='';
-  ev.sections.forEach(function(sec,i){
+  var byName={};
+  ev.sections.forEach(function(sec){byName[sec.name]=sec});
+  var order=failed.length&&lastRun?lastRun.sectionNames:ev.sections.map(function(sec){return sec.name});
+  order.forEach(function(name,i){
+    var sec=byName[name];
+    if(!sec){
+      if(failed.indexOf(name)===-1)return;
+      var f=document.createElement('div');
+      f.className='sec-card';
+      f.dataset.failed='1';
+      var hd=document.createElement('div');hd.className='sec-hd';hd.style.cursor='default';
+      var dot=document.createElement('div');dot.className='sec-dot';dot.style.background='var(--tx3)';
+      var nm=document.createElement('div');nm.className='sec-nm';nm.textContent=name;
+      var sc=document.createElement('div');sc.className='sec-sc';sc.style.color='var(--tx3)';sc.textContent='not scored';
+      hd.appendChild(dot);hd.appendChild(nm);hd.appendChild(sc);
+      var msg=document.createElement('div');
+      msg.style.cssText='padding:0 17px 14px;font-size:12px;color:var(--tx2)';
+      msg.appendChild(document.createTextNode("Couldn't score this section. "));
+      var btn=document.createElement('button');
+      btn.className='btn btn-s';btn.style.cssText='margin-left:6px;padding:4px 10px;font-size:11px';
+      btn.setAttribute('data-retry-sections','1');btn.textContent='Retry';
+      btn.addEventListener('click',retryFailedSections);
+      msg.appendChild(btn);
+      f.appendChild(hd);f.appendChild(msg);
+      cards.appendChild(f);
+      return;
+    }
     var d=document.createElement('div');
     d.className='sec-card '+sec.status;
     d.innerHTML='<div class="sec-hd" onclick="toggleSec(this.parentElement)"><div class="sec-dot"></div><div class="sec-nm">'+sec.name+'</div><div class="sec-sc">'+sec.score+'/100</div><div class="chev">v</div></div><div class="sec-bd"><div class="sec-sub">What was covered</div><div class="sec-txt">'+sec.covered+'</div><div class="sec-sub">Gaps</div><div class="sec-txt">'+sec.gaps+'</div><div class="sec-sub">Coaching tip</div><div class="sec-txt">'+sec.coaching+'</div><div class="sec-sub">Next step</div><div class="sec-txt" style="color:var(--tx)">&#x2192; '+sec.next_step+'</div><button class="btn btn-s" style="margin-top:12px;padding:5px 11px;font-size:11px" onclick="copySection(this)">Copy section</button></div>';
@@ -1061,6 +1174,9 @@ function renderSections(ev,silent){
   });
   var nl=document.getElementById('next-list');
   nl.innerHTML='';
+  if(failed.length&&evalRunState.needsNext&&!ev.next_steps.length){
+    var pend=document.createElement('li');pend.textContent='Next steps appear once the remaining sections are scored.';nl.appendChild(pend);
+  }
   ev.next_steps.forEach(function(s){var li=document.createElement('li');li.textContent=s;nl.appendChild(li)});
   if(!silent){
     saveHist(ev);
@@ -1090,8 +1206,8 @@ function animSteps(){
   tick();
 }
 
-async function callAPI(transcript,framework,customFields,dealName,persona,mode,dealStage){
-  var payload=JSON.stringify({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full',dealStage:dealStage});
+async function callAPI(transcript,framework,customFields,dealName,persona,mode,dealStage,extra){
+  var payload=JSON.stringify(Object.assign({transcript:transcript,framework:framework,customFields:customFields,dealName:dealName,persona:persona,mode:mode||'full',dealStage:dealStage},extra||{}));
   // evaluate.js doesn't normally require auth (the product works
   // anonymously by design) — except for the LegalFly framework, which is
   // gated server-side to one account. Attach the token whenever signed in
@@ -1929,9 +2045,9 @@ async function syncCustomFw(fw){
     .eq('id', currentUser.id)
 }
 
-async function syncEvalToSupabase(ev){
+async function syncEvalToSupabase(ev, sectionStatus){
   if(!currentUser) return
-  await supa.from('evaluations').insert({
+  var row = {
     user_id: currentUser.id,
     fw: ev.fw,
     overall_score: ev.overall_score,
@@ -1940,7 +2056,16 @@ async function syncEvalToSupabase(ev){
     persona: ev.persona || null,
     summary: ev.summary || null,
     next_steps: ev.next_steps || null
-  })
+  }
+  // section_status only exists once the partners migration has been applied.
+  // Until then, a save that includes it is refused by the database, so fall
+  // back to the plain row rather than lose the evaluation.
+  if(sectionStatus) row.section_status = sectionStatus
+  var res = await supa.from('evaluations').insert(row)
+  if(res && res.error && sectionStatus){
+    delete row.section_status
+    await supa.from('evaluations').insert(row)
+  }
 }
 
 // De-dupe key for merging local vs. account history. Date-only (not the
@@ -1993,6 +2118,9 @@ async function loadEvaluationsFromSupabase(){
 }
 
 function saveHist(ev){var h=getHist();h.unshift(ev);sl('rekol_hist',JSON.stringify(h.slice(0,100)))}
+// Same as saveHist, but replaces an existing copy of the same evaluation
+// instead of adding a second one.
+function upsertHist(ev){var h=getHist().filter(function(e){return e.id!==ev.id});h.unshift(ev);sl('rekol_hist',JSON.stringify(h.slice(0,100)))}
 function getHist(){try{return JSON.parse(gl('rekol_hist')||'[]')}catch{return[]}}
 function renderHistory(){
   var h=getHist();var c=document.getElementById('hist-c');

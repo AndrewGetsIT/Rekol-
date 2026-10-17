@@ -185,7 +185,7 @@ exports.handler = async function (event) {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method not allowed' }
 
   try {
-    let { transcript, framework, customFields, dealName, persona, mode, dealStage } = JSON.parse(event.body)
+    let { transcript, framework, customFields, dealName, persona, mode, dealStage, sections: onlySections, includeNextSteps: wantNextSteps } = JSON.parse(event.body)
 
     // LegalFly is private to one account. Checked before anything else
     // touches the framework — before FW_FIELDS/FW_DESC are even looked
@@ -423,12 +423,28 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
     // MEDDIC (6) and BANT/SPIN (4) already land on groups of 3 or 2 under
     // this rule, so their behaviour is unchanged. Only frameworks with
     // more than 6 sections (LegalFly's 9) actually get a 3rd group.
+    //
+    // Retrying failed sections: the browser may send `sections` (a subset
+    // of this framework's section names) to re-score only those, e.g. after
+    // one batch of a full pass failed. Same grouping rule, same prompts,
+    // same tool schema as a normal full pass — just fewer sections. A
+    // subset call only asks for next_steps when `includeNextSteps` is
+    // true (the retry of the batch that was meant to produce them).
+    let targetSections = sections
+    const isSubsetCall = Array.isArray(onlySections) && onlySections.length > 0
+    if (isSubsetCall) {
+      const valid = onlySections.every(n => typeof n === 'string' && sections.includes(n)) && new Set(onlySections).size === onlySections.length
+      if (!valid) {
+        return { statusCode: 400, body: JSON.stringify({ error: 'invalid_sections' }) }
+      }
+      targetSections = sections.filter(n => onlySections.includes(n))
+    }
     const CHUNK_SIZE = 3
-    const numGroups = Math.max(1, Math.ceil(sections.length / CHUNK_SIZE))
-    const groupSize = Math.ceil(sections.length / numGroups)
+    const numGroups = Math.max(1, Math.ceil(targetSections.length / CHUNK_SIZE))
+    const groupSize = Math.ceil(targetSections.length / numGroups)
     const groups = []
     for (let i = 0; i < numGroups; i++) {
-      const g = sections.slice(i * groupSize, (i + 1) * groupSize)
+      const g = targetSections.slice(i * groupSize, (i + 1) * groupSize)
       if (g.length) groups.push(g)
     }
 
@@ -449,7 +465,7 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
     // matters when a call actually needs it; it doesn't add latency to
     // calls that don't.
     const calls = groups.map((secs, i) => {
-      const includeNextSteps = i === groups.length - 1
+      const includeNextSteps = i === groups.length - 1 && (!isSubsetCall || wantNextSteps === true)
       return postToolCall({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 5000,
@@ -465,25 +481,11 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
     transcript = null
 
     const callErrors = results.map(r => r.error).filter(Boolean)
-    if (callErrors.length) {
-      return { statusCode: 502, body: JSON.stringify({ error: callErrors.join(' | ') }) }
-    }
 
     // Merge into canonical framework order, deduping by name (first
-    // occurrence wins) — this is the second half of the fix: even with the
-    // schema enum above, don't trust every group to be well-formed.
-    // Prospect B's eval once returned Metrics/Economic Buyer/Decision
-    // Criteria twice and silently dropped the rest; a blind concat would
-    // reproduce that. Rather than save a partial or duplicated record,
-    // treat an incomplete merge as a failed eval so the AE re-runs instead
-    // of getting a silently wrong one.
-    // Defensive: the tool schema declares `sections` as an array, but that
-    // describes intent, not a runtime guarantee — a malformed generation
-    // could still hand back something else (null, a string, an object).
-    // Treat anything that isn't actually an array as "this group
-    // contributed nothing" rather than crashing .forEach on it; the
-    // completeness guard below then does its job and surfaces a clear
-    // "missing section(s)" 502 instead of an opaque 500.
+    // occurrence wins). Never save a duplicated record: a section is either
+    // present exactly once or reported as failed. A group whose `sections`
+    // is not actually an array contributes nothing.
     const byName = {}
     results.forEach(r => {
       const secs = r.result && Array.isArray(r.result.sections) ? r.result.sections : []
@@ -492,21 +494,36 @@ Scoring notes: Weight the chosen backbone (MEDDIC) as the core of deal health. T
       })
     })
 
-    const mergedSections = sections.map(name => byName[name]).filter(Boolean)
+    const mergedSections = targetSections.map(name => byName[name]).filter(Boolean)
+    const failedNames = targetSections.filter(name => !byName[name])
 
-    if (mergedSections.length !== sections.length) {
-      const missing = sections.filter(name => !byName[name])
-      console.error('Full mode merge incomplete — missing:', missing.join(', '))
+    // Nothing usable at all: same 502 as before, so the browser's existing
+    // retry-once-on-502 still applies.
+    if (mergedSections.length === 0) {
+      if (callErrors.length) {
+        return { statusCode: 502, body: JSON.stringify({ error: callErrors.join(' | ') }) }
+      }
+      console.error('Full mode merge incomplete — missing:', failedNames.join(', '))
       return {
         statusCode: 502,
-        body: JSON.stringify({ error: 'Evaluation incomplete — missing section(s): ' + missing.join(', ') + '. Please try again.' }),
+        body: JSON.stringify({ error: 'Evaluation incomplete — missing section(s): ' + failedNames.join(', ') + '. Please try again.' }),
       }
     }
 
-    const lastNextSteps = results[results.length - 1].result.next_steps
+    const lastResult = results[results.length - 1].result
+    const lastNextSteps = lastResult ? lastResult.next_steps : undefined
     const merged = {
       sections: mergedSections,
       next_steps: Array.isArray(lastNextSteps) ? lastNextSteps : [],
+    }
+
+    // Partial result: some batches loaded, some did not. Return what loaded
+    // (HTTP 200) plus which sections to retry. A complete result has exactly
+    // the same fields as always.
+    if (failedNames.length) {
+      console.error('Full mode partial — failed section(s):', failedNames.join(', '))
+      merged.failed_sections = failedNames
+      merged.needs_next_steps = !lastResult
     }
 
     return {

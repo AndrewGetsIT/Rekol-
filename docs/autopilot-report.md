@@ -13,3 +13,5 @@ Branch `autopilot/quick-wins`. Nothing merged, nothing pushed to `main`, product
 
 | Item | Status | Tests |
 |---|---|---|
+| Pack, DB suite, safety net | done | 29 baseline; DB suite 103 checks (93 + 10 profile guard) ALL PASSED |
+| 0D never lose a score | done | 44 passed |

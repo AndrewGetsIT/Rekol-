@@ -1,5 +1,7 @@
 # Autopilot report (run 2)
 
+Final state: `npm test` 111 passed; DB isolation suite 103 checks, ALL TESTS PASSED and PROFILE GUARD TESTS PASSED.
+
 Branch `autopilot/quick-wins`. Nothing merged, nothing pushed to `main`, production database never touched.
 
 ## 0. Before you merge (owner checklist)
@@ -26,6 +28,16 @@ Branch `autopilot/quick-wins`. Nothing merged, nothing pushed to `main`, product
 | Phases 2-6 | not started (separate run 3) | - |
 
 Totals at last commit: `npm test` 83 passed; DB suite 103 checks passed.
+
+### Commits on this branch
+
+- `7b58c1c` autopilot: add build plan, migrations SQL, DB isolation suite and layer format (docs and SQL only)
+- `f2dca01` autopilot: safety net - npm test harness and baseline contract tests (29 passed on unmodified code)
+- `add4fb4` autopilot: 0D never lose a score (tests: 44 passed)
+- `5075578` autopilot: 0B hardening (retry tokens, sessionStorage, browser tests, profile guard)
+- `d3790d5` autopilot: 0E Copy for HubSpot (tests: 91 passed)
+- `3a3f6bb` autopilot: 0C analytics - cookieless Plausible and 10 events (tests: 100 passed)
+- `f06607e` autopilot: 0A prompt caching behind PROMPT_CACHE, default off (tests: 111 passed)
 
 ## 2. Co-manager work on `main` (read-only review, nothing touched)
 
@@ -61,7 +73,7 @@ Uncommitted in `~/dev/Rekol-/Rekol`: `index.html` (+60/-), `ae-drilldown.js`, `t
 
 ## 6. Failures
 
-None reverted. Run stopped after 0B hardening; see step 3 below if more was done.
+None reverted. Every item passed the full gate (npm test and the DB suite) on the first or second try. The only failures were my own test expectations while writing tests (fixed in the tests, never in the app).
 
 ## 4b. 0E notes
 
@@ -85,4 +97,4 @@ None reverted. Run stopped after 0B hardening; see step 3 below if more was done
 
 ## 7. Not done in this run
 
-Phases 2-6 (separate run 3 on `autopilot/partners-foundation`). 0E, 0C, 0A: see summary table.
+Phases 2-6 (separate run 3 on `autopilot/partners-foundation`). Nothing else from Phase 0 is outstanding.

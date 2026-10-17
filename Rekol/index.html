@@ -8,11 +8,10 @@
   <meta property="og:title" content="Rekol — AI Sales Call Intelligence">
   <meta property="og:description" content="Let AI handle the post-call admin. You focus on closing.">
   <meta property="og:url" content="https://getrekol.com">
-  <!-- Google Analytics — replace G-XXXXXXXXXX -->
-  <!--
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-XXXXXXXXXX');</script>
-  -->
+  <!-- Plausible: cookieless analytics (no consent banner). Pageviews plus a short fixed list of
+       custom events; see track() below. Never sends transcripts, emails, names, deal names or scores. -->
+  <script defer data-domain="getrekol.com" src="https://plausible.io/js/script.js"></script>
+  <script>window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)}</script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -801,6 +800,24 @@ var evalCount=parseInt(gl('rekol_count')||'0');
 var isPro=gl('rekol_pro')==='1';
 var digestEnabled=gl('rekol_digest')==='1';
 var FREE_LIMIT=10;
+// Analytics: only these events, and only a framework name and mode as
+// properties (framework must be one of the built-in names, so a custom
+// framework's own name can never leave the browser). Everything else is dropped.
+var ANALYTICS_EVENTS=['demo_run','eval_started','eval_completed','eval_failed','signin_prompted','signin_completed','paywall_shown','share_created','team_created','crm_copied'];
+var ANALYTICS_FRAMEWORKS=['MEDDIC','BANT','SPIN','Custom','LegalFly'];
+var ANALYTICS_MODES=['quick','full'];
+function track(name,props){
+  try{
+    if(ANALYTICS_EVENTS.indexOf(name)===-1||typeof window.plausible!=='function')return;
+    var clean={};
+    if(props){
+      if(ANALYTICS_FRAMEWORKS.indexOf(props.framework)!==-1)clean.framework=props.framework;
+      if(ANALYTICS_MODES.indexOf(props.mode)!==-1)clean.mode=props.mode;
+    }
+    if(Object.keys(clean).length)window.plausible(name,{props:clean});else window.plausible(name);
+  }catch(e){}
+}
+function showPaywall(){document.getElementById('ov-upgrade').classList.add('on');track('paywall_shown')}
 var currentUser=null;
 var myTeams=[],currentTeamId=null,teamDashboardData=null,teamRangeDays=30;
 var FW_FIELDS={MEDDIC:['Metrics','Economic Buyer','Decision Criteria','Decision Process','Identify Pain','Champion'],BANT:['Budget','Authority','Need','Timeline'],SPIN:['Situation','Problem','Implication','Need-Payoff']};
@@ -1008,7 +1025,7 @@ async function runEval(){
   // limit is likewise only for real evaluations, never the demo.
   var isDemo=isDemoText(transcript);
   if(!isDemo&&!signedIn){promptSignInForEval();return}
-  if(!isDemo&&!isPro&&evalCount>=FREE_LIMIT){document.getElementById('ov-upgrade').classList.add('on');return}
+  if(!isDemo&&!isPro&&evalCount>=FREE_LIMIT){showPaywall();return}
   var customFields=[];
   if(fw==='Custom'){
     var rows=Array.from(document.querySelectorAll('#cf-list .cf-row'));
@@ -1019,6 +1036,8 @@ async function runEval(){
     }).filter(Boolean);
     if(!customFields.length){toast('Add at least one field with a name.');return}
   }
+  track('eval_started',{framework:fw});
+  if(isDemo)track('demo_run',{framework:fw});
   go('loading');animSteps();
   var secNames=fw==='Custom'?customFields.map(function(f){return typeof f==='object'?f.name:f}):getFwFields();
   // Held in memory only (never stored) so that, if one batch of the full
@@ -1040,8 +1059,8 @@ async function runEval(){
   }catch(e){
     go('home');
     if(e&&e.code==='sign_in_required'){promptSignInForEval()}
-    else if(e&&e.code==='upgrade_required'){document.getElementById('ov-upgrade').classList.add('on')}
-    else{toast('Something went wrong — please try again. Your transcript is still there.',5000)}
+    else if(e&&e.code==='upgrade_required'){showPaywall()}
+    else{track('eval_failed',{framework:fw,mode:'quick'});toast('Something went wrong — please try again. Your transcript is still there.',5000)}
     console.error(e);
     return;
   }
@@ -1054,6 +1073,7 @@ async function runEval(){
     full=await fullPromise;
   }catch(e){
     console.error(e);
+    track('eval_failed',{framework:fw,mode:'full'});
     // The whole full pass failed (network, or every batch): keep the score,
     // mark every section as not scored and offer the retry.
     full={sections:[],next_steps:[],failed_sections:secNames.slice(),needs_next_steps:true};
@@ -1064,6 +1084,7 @@ async function runEval(){
   evalRunState.failed=(full.failed_sections||[]).slice();
   evalRunState.needsNext=!!full.needs_next_steps;
   renderSections(curEval,true,evalRunState.failed);
+  if(!evalRunState.failed.length)track('eval_completed',{framework:fw});
 
   // The evaluation happened once, however many sections loaded. Retrying
   // failed sections later never counts again.
@@ -1117,7 +1138,7 @@ async function retryFailedSections(){
     if(needNext&&Array.isArray(data.next_steps)&&data.next_steps.length){curEval.next_steps=data.next_steps;evalRunState.needsNext=false}
     evalRunState.failed=lastRun.sectionNames.filter(function(n){return !have[n]});
     renderSections(curEval,true,evalRunState.failed);
-    if(!evalRunState.failed.length){persistEval()}
+    if(!evalRunState.failed.length){track('eval_completed',{framework:lastRun.framework});persistEval()}
     else{toast('Some sections still could not be scored. You can retry again.')}
   }catch(e){
     console.error(e);
@@ -1345,6 +1366,7 @@ function copyForCrm(btn){
   var text=buildCrmBlock(curEval);
   navigator.clipboard.writeText(text).then(function(){
     if(btn){var old=btn.textContent;btn.textContent='Copied';setTimeout(function(){btn.textContent=old},2000)}
+    track('crm_copied',{framework:curEval&&curEval.fw});
     toast('Copied — paste into your HubSpot deal');
   });
 }
@@ -1375,6 +1397,7 @@ async function generateShareLink(btn){
     if(!res.ok)throw new Error('API '+res.status);
     var data=await res.json();
     if(data.error)throw new Error(data.error);
+    track('share_created',{framework:curEval.fw});
     document.getElementById('share-in').value='https://getrekol.com/e/'+data.id;
     document.getElementById('share-generate-row').style.display='none';
     document.getElementById('share-box').style.display='flex';
@@ -1576,6 +1599,8 @@ var SIGNIN_DEFAULT_MSG='Save your history, share evaluations with your team, and
 function openSignIn(msg){
   document.getElementById('signin-msg').textContent=(typeof msg==='string'&&msg)?msg:SIGNIN_DEFAULT_MSG;
   document.getElementById('ov-signin').classList.add('on')
+  ssSet('rekol_signin_started','1')
+  track('signin_prompted')
 }
 // The modal's Skip / dismiss: also forgets any call that was waiting for sign-in.
 function dismissSignIn(){closeOv('ov-signin');clearPendingEval()}
@@ -1668,6 +1693,8 @@ async function onAuthStateChange(user){
     signedIn=true; currentUser=user;
     sl('rekol_signed','1')
     closeOv('ov-signin')
+    // Only counts a sign-in that followed a prompt, not a returning session.
+    if(ssGet('rekol_signin_started')){try{sessionStorage.removeItem('rekol_signin_started')}catch(e){};track('signin_completed')}
     document.getElementById('signin-nav-btn').style.display='none'
     document.getElementById('signout-btn').style.display='flex'
     setNavUser(user)
@@ -1857,6 +1884,7 @@ async function createTeamAndInvite(){
     })
     var data = await res.json()
     if(!res.ok || data.error) throw new Error(data.error || 'API '+res.status)
+    track('team_created');
     toast('Team created — '+data.invited+' invite'+(data.invited===1?'':'s')+' sent.')
     currentTeamId = data.team.id
     await renderManagerView()

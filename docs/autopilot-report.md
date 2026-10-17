@@ -21,7 +21,8 @@ Branch `autopilot/quick-wins`. Nothing merged, nothing pushed to `main`, product
 | 0B hardening 2c browser tests | done | 13 browser tests |
 | 0B hardening 2d profile billing guard (SQL + DB tests) | done, NOT applied | DB suite 103 checks ALL TESTS PASSED + PROFILE GUARD TESTS PASSED |
 | 0E Copy for HubSpot | done | 8 tests (91 total) |
-| 0C, 0A, Phases 2-6 | not started yet | - |
+| 0C Analytics (Plausible) | done | 9 tests (100 total) |
+| 0A, Phases 2-6 | not started yet | - |
 
 Totals at last commit: `npm test` 83 passed; DB suite 103 checks passed.
 
@@ -66,6 +67,12 @@ None reverted. Run stopped after 0B hardening; see step 3 below if more was done
 - The block is built client-side only. Saving it to `evaluations.crm_summary` is **not done**: that column only exists after the partners migration, and the browser's evaluation id is not the database id, so there is nothing safe to update yet. Do it with Phase 2's save logic.
 - No layer exists yet, so `crm_field` is honoured only if a section carries one; today labels are section names.
 - The `crm_copied` analytics event is added by 0C.
+
+## 4c. 0C notes
+
+- Plausible script for `getrekol.com` added; the commented-out GA tag removed. Nothing records until you create the Plausible site. To see `framework`/`mode` in the dashboard, add them as custom properties in Plausible.
+- `signin_completed` only fires for a sign-in that followed a prompt in the same tab (sessionStorage flag), so a magic link opened in a new tab is not counted. This undercounts rather than over-counts.
+- Events: demo_run, eval_started, eval_completed (once per evaluation, when all sections loaded, including via retry), eval_failed, signin_prompted, signin_completed, paywall_shown, share_created, team_created, crm_copied. A test asserts every one fires somewhere and that no property other than a built-in framework name and quick/full mode can be sent.
 
 ## 7. Not done in this run
 

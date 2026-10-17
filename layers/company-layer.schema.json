@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://getrekol.com/schemas/company-layer.json",
+  "title": "Rekol company layer definition",
+  "description": "Stored in company_layers.definition. Sits on top of a backbone (MEDDIC, BANT, SPIN or CUSTOM). evaluate.js reads it server-side with the service role; it is never sent to the browser.",
+  "type": "object",
+  "required": ["context", "sections"],
+  "additionalProperties": false,
+  "properties": {
+    "context": {
+      "type": "string",
+      "description": "Who the reps sell to and how this methodology defines a good call. Plain prose, written for the model. No customer names or personal data.",
+      "maxLength": 6000
+    },
+    "sections": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "description": "Scored stages. Keep to 9 or fewer so the full pass stays within three batches of three under the function time limit.",
+      "items": {
+        "type": "object",
+        "required": ["name", "what_good_looks_like"],
+        "additionalProperties": false,
+        "properties": {
+          "name":                 { "type": "string", "maxLength": 60 },
+          "what_good_looks_like": { "type": "string", "maxLength": 1200, "description": "Observable behaviours that earn green." },
+          "evidence_rules":       { "type": "string", "maxLength": 800,  "description": "What must be in the transcript to score it, e.g. 'a number the prospect said, not the rep'." },
+          "red_flags":            { "type": "string", "maxLength": 800,  "description": "Behaviours that force amber or red." },
+          "coaching_language":    { "type": "string", "maxLength": 800,  "description": "How the coach phrases feedback, so the output sounds like them." },
+          "critical":             { "type": "boolean", "default": false, "description": "If true, the deal-risk view flags deals where this stage is still red after the second call." },
+          "crm_field":            { "type": "string", "maxLength": 60,   "description": "Optional label used in the copy-to-CRM block, e.g. 'Economic buyer'." }
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "green_min": { "type": "integer", "minimum": 0, "maximum": 100, "default": 70 },
+        "amber_min": { "type": "integer", "minimum": 0, "maximum": 100, "default": 40 }
+      }
+    },
+    "voice": {
+      "type": "string",
+      "maxLength": 400,
+      "description": "Tone for summaries and coaching, e.g. 'direct, encouraging, British English, no jargon'."
+    }
+  }
+}

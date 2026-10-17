@@ -558,6 +558,7 @@
     <div id="eval-limit-bar"></div>
     <div class="act-bar">
       <button class="btn btn-s" onclick="window.print()">Print / Save PDF</button>
+      <button class="btn btn-s" id="crm-copy-btn" onclick="copyForCrm(this)">Copy for HubSpot</button>
       <button class="btn btn-s" onclick="openPractice()">Practice this →</button>
       <button class="btn btn-s" onclick="openShare()">Share eval →</button>
       <button class="btn btn-ghost" onclick="go('home')" style="margin-left:auto">+ New evaluation</button>
@@ -1306,6 +1307,46 @@ function toggleEdit(){
   var ce=editMode?'true':'false';
   document.querySelectorAll('.sec-txt,#out-sum').forEach(function(el){el.contentEditable=ce});
   if(editMode)toast('Click any text to edit it');else toast('Changes saved');
+}
+
+// "Copy for HubSpot": a plain-text field block built client-side from the
+// evaluation already on screen (no extra model call, nothing sent anywhere).
+// One `Label: value` per line, under 1,500 characters: sections first (label
+// = the layer's crm_field when a section has one, otherwise its name; value
+// = what was covered plus the first gap), then next step, risks (red
+// sections), score and a Rekol line.
+var CRM_MAX_CHARS=1500;
+function buildCrmBlock(ev){
+  function clip(t,n){t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n-1).replace(/\s+\S*$/,'')+'…':t}
+  function firstSentence(t,n){t=String(t||'').replace(/\s+/g,' ').trim();var m=t.match(/^.*?[.!?](?=\s|$)/);return clip(m?m[0]:t,n)}
+  var secs=ev.sections||[];
+  var date=new Date(ev.date||Date.now()).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  var reds=secs.filter(function(x){return x.status==='red'}).map(function(x){return x.name});
+  var nextStep=(ev.next_steps&&ev.next_steps[0])||(secs.filter(function(x){return x.next_step})[0]||{}).next_step||'';
+  function build(limit){
+    var lines=secs.map(function(x){
+      var val=clip(x.covered,limit);
+      var gap=firstSentence(x.gaps,limit);
+      if(gap)val+=(val?' ':'')+'Gap: '+gap;
+      return (x.crm_field||x.name)+': '+val;
+    });
+    lines.push('Next step: '+clip(nextStep,limit));
+    lines.push('Risks: '+(reds.length?reds.join(', '):'None flagged'));
+    lines.push('Score: '+ev.overall_score+'/100');
+    lines.push('Scored by Rekol on '+date);
+    return lines.join('\n');
+  }
+  var out='';
+  [160,110,80,55,35,20].some(function(limit){out=build(limit);return out.length<=CRM_MAX_CHARS});
+  return out.length>CRM_MAX_CHARS?out.slice(0,CRM_MAX_CHARS):out;
+}
+function copyForCrm(btn){
+  if(!curEval)return;
+  var text=buildCrmBlock(curEval);
+  navigator.clipboard.writeText(text).then(function(){
+    if(btn){var old=btn.textContent;btn.textContent='Copied';setTimeout(function(){btn.textContent=old},2000)}
+    toast('Copied — paste into your HubSpot deal');
+  });
 }
 
 function copyEval(){

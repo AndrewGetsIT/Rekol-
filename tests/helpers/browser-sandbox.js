@@ -71,6 +71,7 @@ function createSandbox(opts = {}) {
   const fetchCalls = []
   const profileWrites = []
   const domReady = []
+  const clipboard = []
 
   const document = {
     getElementById: (id) => get('#' + id),
@@ -111,7 +112,7 @@ function createSandbox(opts = {}) {
   }
 
   const sandbox = {
-    document, window: win, navigator: { clipboard: { writeText: () => Promise.resolve() } },
+    document, window: win, navigator: { clipboard: { writeText: (t) => { clipboard.push(t); return Promise.resolve() } } },
     localStorage: local.api,
     sessionStorage: session.api,
     emailjs: { init() {}, send: () => Promise.resolve() },
@@ -149,6 +150,7 @@ function createSandbox(opts = {}) {
     store: local.store,
     sessionStore: session.store,
     profileWrites,
+    clipboard,
     fireDomReady: () => domReady.forEach((fn) => fn()),
     run: (code) => vm.runInContext(code, ctx),
     // objects created inside the vm have a different prototype; copy them across for deepStrictEqual

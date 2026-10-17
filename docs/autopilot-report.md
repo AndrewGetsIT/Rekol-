@@ -20,7 +20,8 @@ Branch `autopilot/quick-wins`. Nothing merged, nothing pushed to `main`, product
 | 0B hardening 2b pending transcript in sessionStorage | done | in browser tests |
 | 0B hardening 2c browser tests | done | 13 browser tests |
 | 0B hardening 2d profile billing guard (SQL + DB tests) | done, NOT applied | DB suite 103 checks ALL TESTS PASSED + PROFILE GUARD TESTS PASSED |
-| 0E, 0C, 0A, Phases 2-6 | not started in this run (see below) | - |
+| 0E Copy for HubSpot | done | 8 tests (91 total) |
+| 0C, 0A, Phases 2-6 | not started yet | - |
 
 Totals at last commit: `npm test` 83 passed; DB suite 103 checks passed.
 
@@ -59,6 +60,12 @@ Uncommitted in `~/dev/Rekol-/Rekol`: `index.html` (+60/-), `ae-drilldown.js`, `t
 ## 6. Failures
 
 None reverted. Run stopped after 0B hardening; see step 3 below if more was done.
+
+## 4b. 0E notes
+
+- The block is built client-side only. Saving it to `evaluations.crm_summary` is **not done**: that column only exists after the partners migration, and the browser's evaluation id is not the database id, so there is nothing safe to update yet. Do it with Phase 2's save logic.
+- No layer exists yet, so `crm_field` is honoured only if a section carries one; today labels are section names.
+- The `crm_copied` analytics event is added by 0C.
 
 ## 7. Not done in this run
 
